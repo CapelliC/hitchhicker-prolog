@@ -1,4 +1,4 @@
-const IntStack = require('./IntStack.js')
+const IntStack = require('./IntStack')
 
 const MAXIND = 3 // number of index args
 const START_INDEX = 20
@@ -339,7 +339,7 @@ class Engine {
 
       while (K.hasNext()) {
         //final IntStack Is = K.next();
-        let IntStack Is = K.next()
+        let Is = K.next()
 
         // finding the A among refs
         let leader = -1
@@ -455,7 +455,7 @@ class Engine {
    * non-variable cell
    */
   deref(x) {
-    while (isVAR(x)) {
+    while (Engine.isVAR(x)) {
       let r = this.getRef(x)
       if (r == x) {
         break
@@ -463,14 +463,14 @@ class Engine {
       x = r
     }
     //*
-    switch (tagOf(x)) {
+    switch (Engine.tagOf(x)) {
       case V:
       case R:
       case C:
       case N:
       break;
       default:
-        pp("unexpected deref=" + showCell(x));
+        pp("unexpected deref=" + this.showCell(x));
     }
     //*/
     return x
@@ -576,65 +576,65 @@ class Engine {
   /**
    * raw display of a cell as tag : value
    */
-  final String showCell(final int w) {
-    final int t = tagOf(w);
-    final int val = detag(w);
-    String s = null;
+  showCell(w) {
+    let t = Engine.tagOf(w)
+    let val = Engine.detag(w)
+    let s = null
     switch (t) {
       case V:
-        s = "v:" + val;
-      break;
+        s = "v:" + val
+      break
       case U:
-        s = "u:" + val;
-      break;
+        s = "u:" + val
+      break
       case N:
-        s = "n:" + val;
-      break;
+        s = "n:" + val
+      break
       case C:
-        s = "c:" + getSym(val);
-      break;
+        s = "c:" + getSym(val)
+      break
       case R:
-        s = "r:" + val;
-      break;
+        s = "r:" + val
+      break
       case A:
-        s = "a:" + val;
-      break;
+        s = "a:" + val
+      break
       default:
-        s = "*BAD*=" + w;
+        s = "*BAD*=" + w
     }
-    return s;
+    return s
   }
 
   /**
    * a displayer for cells
    */
 
-  String showCells(final int base, final int len) {
-    final StringBuffer buf = new StringBuffer();
-    for (int k = 0; k < len; k++) {
-      final int instr = heap[base + k];
+  showCells(base, len) {
+    let buf = new StringBuffer()
+    for (let k = 0; k < len; k++) {
+      let instr = this.heap[base + k];
 
-      buf.append("[" + (base + k) + "]");
-      buf.append(showCell(instr));
-      buf.append(" ");
+      buf.append("[" + (base + k) + "]")
+      buf.append(this.showCell(instr))
+      buf.append(" ")
     }
-    return buf.toString();
+    return buf.toString()
   }
 
-  String showCells(final int[] cs) {
-    final StringBuffer buf = new StringBuffer();
-    for (int k = 0; k < cs.length; k++) {
-      buf.append("[" + k + "]");
-      buf.append(showCell(cs[k]));
-      buf.append(" ");
+  showCells(cs) {
+    let buf = new StringBuffer()
+    for (let k = 0; k < cs.length; k++) {
+      buf.append("[" + k + "]")
+      buf.append(showCell(cs[k]))
+      buf.append(" ")
     }
-    return buf.toString();
+    return buf.toString()
   }
 
   /**
   * to be overridden as a printer of a spine
   */
-  void ppc(final Spine C) {
+  ppc(C) {
     // override
   }
 
@@ -642,14 +642,14 @@ class Engine {
    * to be overridden as a printer for current goals
    * in a spine
    */
-  void ppGoals(final IntList gs) {
+  ppGoals(gs) {
     // override
   }
 
   /**
    * to be overriden as a printer for spines
    */
-  void ppSpines() {
+  ppSpines() {
     // override
   }
 
@@ -657,117 +657,117 @@ class Engine {
    * unification algorithm for cells X1 and X2 on ustack that also takes care
    * to trail bindigs below a given heap address "base"
    */
-  final private boolean unify(final int base) {
-    while (!ustack.isEmpty()) {
-      final int x1 = deref(ustack.pop());
-      final int x2 = deref(ustack.pop());
+  unify(base) {
+    while (!this.ustack.isEmpty()) {
+      let x1 = deref(ustack.pop())
+      let x2 = deref(ustack.pop())
       if (x1 != x2) {
-        final int t1 = tagOf(x1);
-        final int t2 = tagOf(x2);
-        final int w1 = detag(x1);
-        final int w2 = detag(x2);
+        let t1 = tagOf(x1)
+        let t2 = tagOf(x2)
+        let w1 = detag(x1)
+        let w2 = detag(x2)
 
         if (isVAR(x1)) { /* unb. var. v1 */
           if (isVAR(x2) && w2 > w1) { /* unb. var. v2 */
-            heap[w2] = x1;
+            heap[w2] = x1
             if (w2 <= base) {
-              trail.push(x2);
+              trail.push(x2)
             }
           } else { // x2 nonvar or older
-            heap[w1] = x2;
+            heap[w1] = x2
             if (w1 <= base) {
-              trail.push(x1);
+              trail.push(x1)
             }
           }
         } else if (isVAR(x2)) { /* x1 is NONVAR */
-          heap[w2] = x1;
+          heap[w2] = x1
           if (w2 <= base) {
-            trail.push(x2);
+            trail.push(x2)
           }
         } else if (R == t1 && R == t2) { // both should be R
           if (!unify_args(w1, w2))
-            return false;
+            return false
         } else
-          return false;
+          return false
       }
     }
-    return true;
+    return true
   }
 
-  final private boolean unify_args(final int w1, final int w2) {
-    final int v1 = heap[w1];
-    final int v2 = heap[w2];
+  unify_args(w1, w2) {
+    let v1 = this.heap[w1]
+    let v2 = this.heap[w2]
     // both should be A
-    final int n1 = detag(v1);
-    final int n2 = detag(v2);
+    let n1 = Engine.detag(v1)
+    let n2 = Engine.detag(v2)
     if (n1 != n2)
-      return false;
-    final int b1 = 1 + w1;
-    final int b2 = 1 + w2;
-    for (int i = n1 - 1; i >= 0; i--) {
-      final int i1 = b1 + i;
-      final int i2 = b2 + i;
-      final int u1 = heap[i1];
-      final int u2 = heap[i2];
+      return false
+    let b1 = 1 + w1
+    let b2 = 1 + w2
+    for (let i = n1 - 1; i >= 0; i--) {
+      let i1 = b1 + i
+      let i2 = b2 + i
+      let u1 = this.heap[i1]
+      let u2 = this.heap[i2]
       if (u1 == u2) {
-        continue;
+        continue
       }
-      ustack.push(u2);
-      ustack.push(u1);
+      this.ustack.push(u2)
+      this.ustack.push(u1)
     }
-    return true;
+    return true
   }
 
   /**
    * places a clause built by the Toks reader on the heap
    */
-  Clause putClause(final int[] cs, final int[] gs, final int neck) {
-    final int base = size();
-    final int b = tag(V, base);
-    final int len = cs.length;
-    pushCells(b, 0, len, cs);
-    for (int i = 0; i < gs.length; i++) {
-      gs[i] = relocate(b, gs[i]);
+  putClause(cs, gs, neck) {
+    let base = size()
+    let b = tag(V, base)
+    let len = cs.length
+    this.pushCells(b, 0, len, cs)
+    for (let i = 0; i < gs.length; i++) {
+      gs[i] = this.relocate(b, gs[i])
     }
-    final int[] xs = getIndexables(gs[0]);
-    return new Clause(len, gs, base, neck, xs);
+    let xs = getIndexables(gs[0])
+    return new Clause(len, gs, base, neck, xs)
   }
 
   /**
    * relocates a variable or array reference cell by b
    * assumes var/ref codes V,U,R are 0,1,2
    */
-  final private static int relocate(final int b, final int cell) {
-    return tagOf(cell) < 3 ? cell + b : cell;
+  static relocate(b, cell) {
+    return Engine.tagOf(cell) < 3 ? cell + b : cell
   }
 
   /**
    * pushes slice[from,to] of array cs of cells to heap
    */
-  final private void pushCells(final int b, final int from, final int to, final int base) {
-    ensureSize(to - from);
-    for (int i = from; i < to; i++) {
-      push(relocate(b, heap[base + i]));
+  pushCells(b, from, to, base) {
+    this.ensureSize(to - from);
+    for (let i = from; i < to; i++) {
+      this.push(this.relocate(b, this.heap[base + i]))
     }
   }
 
   /**
    * pushes slice[from,to] of array cs of cells to heap
    */
-  final private void pushCells(final int b, final int from, final int to, final int[] cs) {
-    ensureSize(to - from);
-    for (int i = from; i < to; i++) {
-      push(relocate(b, cs[i]));
+  pushCells(b, from, to, cs) {
+    this.ensureSize(to - from)
+    for (let i = from; i < to; i++) {
+      this.push(this.relocate(b, cs[i]))
     }
   }
 
   /**
    * copies and relocates head of clause at offset from heap to heap
    */
-  final private int pushHead(final int b, final Clause C) {
-    pushCells(b, 0, C.neck, C.base);
-    final int head = C.hgs[0];
-    return relocate(b, head);
+  pushHead(b, C) {
+    this.pushCells(b, 0, C.neck, C.base)
+    let head = C.hgs[0]
+    return this.relocate(b, head)
   }
 
   /**
@@ -775,16 +775,16 @@ class Engine {
    * while also placing head as the first element of array gs that
    * when returned contains references to the toplevel spine of the clause
    */
-  final private int[] pushBody(final int b, final int head, final Clause C) {
-    pushCells(b, C.neck, C.len, C.base);
-    final int l = C.hgs.length;
-    final int[] gs = new int[l];
-    gs[0] = head;
-    for (int k = 1; k < l; k++) {
-      final int cell = C.hgs[k];
-      gs[k] = relocate(b, cell);
+  pushBody(b, head, C) {
+    this.pushCells(b, C.neck, C.len, C.base)
+    let l = C.hgs.length
+    let gs = new int[l]
+    gs[0] = head
+    for (let k = 1; k < l; k++) {
+      let cell = C.hgs[k]
+      gs[k] = this.relocate(b, cell)
     }
-    return gs;
+    return gs
   }
 
   /**
@@ -793,52 +793,51 @@ class Engine {
    * note that regs contains dereferenced cells - this is done once for
    * each goal's toplevel subterms
    */
-  final private void makeIndexArgs(final Spine G) {
-    final int goal = IntList.head(G.gs);
+  makeIndexArgs(G) {
+    let goal = IntList.head(G.gs)
     if (null != G.xs)
-      return;
-    final int p = 1 + detag(goal);
-    final int n = Math.min(MAXIND, detag(getRef(goal)));
+      return
+    let p = 1 + Engine.detag(goal)
+    let n = Math.min(MAXIND, this.detag(this.getRef(goal)))
 
-    final int[] xs = new int[MAXIND];
-
-    for (int i = 0; i < n; i++) {
-      final int cell = deref(heap[p + i]);
-      xs[i] = cell2index(cell);
+    let xs = new int[MAXIND]
+    for (let i = 0; i < n; i++) {
+      let cell = this.deref(this.heap[p + i])
+      xs[i] = this.cell2index(cell)
     }
-    G.xs = xs;
+    G.xs = xs
 
     if (null == imaps)
-      return;
-    final int[] cs = IMap.get(imaps, vmaps, xs);
-    G.cs = cs;
+      return
+    let cs = IMap.get(imaps, vmaps, xs)
+    G.cs = cs
   }
 
-  final private int[] getIndexables(final int ref) {
-    final int p = 1 + detag(ref);
-    final int n = detag(getRef(ref));
-    final int[] xs = new int[MAXIND];
-    for (int i = 0; i < MAXIND && i < n; i++) {
-      final int cell = deref(heap[p + i]);
-      xs[i] = cell2index(cell);
+  getIndexables(ref) {
+    let p = 1 + Engine.detag(ref)
+    let n = Engine.detag(this.getRef(ref))
+    let xs = new int[MAXIND]
+    for (let i = 0; i < MAXIND && i < n; i++) {
+      let cell = deref(heap[p + i])
+      xs[i] = cell2index(cell)
     }
-    return xs;
+    return xs
   }
 
-  final private int cell2index(final int cell) {
-    int x = 0;
-    final int t = tagOf(cell);
+  cell2index(cell) {
+    let x = 0
+    let t = Engine.tagOf(cell)
     switch (t) {
       case R:
-        x = getRef(cell);
-      break;
+        x = this.getRef(cell)
+      break
       case C:
       case N:
-        x = cell;
-      break;
+        x = cell
+      break
       // 0 otherwise - assert: tagging with R,C,N <>0
     }
-    return x;
+    return x
   }
 
   /**
@@ -883,37 +882,37 @@ class Engine {
       }
 
       let base0 = base - C0.base
-      let b = tag(V, base0)
+      let b = Engine.tag(V, base0)
       let head = this.pushHead(b, C0)
 
-      ustack.clear(); // set up unification stack
+      ustack.clear() // set up unification stack
 
-      ustack.push(head);
-      ustack.push(IntList.head(G.gs));
+      ustack.push(head)
+      ustack.push(IntList.head(G.gs))
 
       if (!unify(base)) {
-        unwindTrail(ttop);
-        setTop(htop);
-        continue;
+        unwindTrail(ttop)
+        setTop(htop)
+        continue
       }
 
-      final int[] gs = pushBody(b, head, C0);
-      final IntList newgs = IntList.tail(IntList.app(gs, IntList.tail(G.gs)));
-      G.k = k + 1;
+      let gs = pushBody(b, head, C0)
+      let newgs = IntList.tail(IntList.app(gs, IntList.tail(G.gs)))
+      G.k = k + 1
       if (!IntList.isEmpty(newgs))
-        return new Spine(gs, base, IntList.tail(G.gs), ttop, 0, cls);
+        return new Spine(gs, base, IntList.tail(G.gs), ttop, 0, cls)
       else
-        return answer(ttop);
+        return answer(ttop)
     } // end for
-    return null;
+    return null
   }
 
   /**
    * extracts a query - by convention of the form
    * goal(Vars):-body to be executed by the engine
    */
-  Clause getQuery() {
-    return clauses[clauses.length - 1];
+  getQuery() {
+    return this.clauses[this.clauses.length - 1];
   }
 
   /**
@@ -949,7 +948,7 @@ class Engine {
    * true when there are no more goals left to solve
    */
   hasGoals(S) {
-    return !IntList.isEmpty(S.gs);
+    return !IntList.isEmpty(S.gs)
   }
 
   /**
@@ -1005,11 +1004,11 @@ class Engine {
   ask() {
     this.query = this.yield_()
     if (null == query)
-      return null;
-    final int res = answer(query.ttop).hd;
-    final Object R = exportTerm(res);
-    unwindTrail(query.ttop);
-    return R;
+      return null
+    let res = this.answer(query.ttop).hd
+    let R = this.exportTerm(res)
+    this.unwindTrail(query.ttop)
+    return R
   }
 
   /**
@@ -1017,15 +1016,15 @@ class Engine {
    * generated by this engine
    */
   run() {
-    let ctr = 0L
+    let ctr = 0
     for (;; ctr++) {
       let A = ask()
       if (null == A) {
-        break;
+        break
       }
-      //Prog.println("[" + ctr + "] " + "*** ANSWER=" + showTerm(A));
+      pp("[" + ctr + "] " + "*** ANSWER=" + this.showTerm(A))
     }
-    Prog.println("TOTAL ANSWERS=" + ctr);
+    pp("TOTAL ANSWERS=" + ctr)
   }
 
   // indexing extensions - ony active if START_INDEX clauses or more
@@ -1036,7 +1035,7 @@ class Engine {
     let vss = []
     for (let i = 0; i < l; i++)
       vss.push(new IntMap)
-    return vss;
+    return vss
   }
 
   //final static void put(final IMap<Integer>[] imaps, final IntMap[] vss, final int[] keys, final int val)
@@ -1056,7 +1055,7 @@ class Engine {
   index(clauses, vmaps)
   {
     if (clauses.length < START_INDEX)
-      return null;
+      return null
 
     let imaps = IMap.create(vmaps.length)
     for (let i = 0; i < clauses.length; i++) {
@@ -1072,3 +1071,5 @@ class Engine {
     return imaps
   }
 }
+
+exports.Engine = Engine
