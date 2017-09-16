@@ -1,3 +1,5 @@
+// Original code by Paul Tarau. Ported by CapelliC.
+
 const IntStack = require('./IntStack')
 
 const MAXIND = 3 // number of index args
@@ -1042,11 +1044,11 @@ class Engine {
   put(imaps, vss, keys, val)
   {
     for (let i = 0; i < imaps.length; i++) {
-      let key = keys[i];
+      let key = keys[i]
       if (key != 0) {
-        IMap.put(imaps, i, key, val);
+        IMap.put(imaps, i, key, val)
       } else {
-        vss[i].add(val);
+        vss[i].add(val)
       }
     }
   }

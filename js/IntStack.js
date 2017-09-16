@@ -103,7 +103,7 @@ class IntStack {
         })
     }
 }
-
+/*
 function test() {
     let s = new IntStack()
     console.log('s0', s.toString())
@@ -120,3 +120,5 @@ function test() {
     console.log('s3', s.toString())
 }
 test()
+*/
+exports.IntStack = IntStack
