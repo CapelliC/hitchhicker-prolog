@@ -1,3 +1,4 @@
+// Original code by Paul Tarau. Ported by CapelliC.
 
 class IntList {
 

@@ -39,7 +39,7 @@ class IntMap {
   }
   */
   
-  IntMap(size_, fillFactor_) {
+  constructor(size_, fillFactor_) {
       size = size_ || 1 << 2
       fillFactor = fillFactor_ || 0.75
       
