@@ -1,6 +1,9 @@
 // Original code by Paul Tarau. Ported by CapelliC.
 
+const Spine = require('./Spine')
+const Clause = require('./Clause')
 const IntStack = require('./IntStack')
+const IntList = require('./IntList')
 
 const MAXIND = 3 // number of index args
 const START_INDEX = 20
@@ -42,14 +45,16 @@ class Engine {
     this.trail = new IntStack()
     this.ustack = new IntStack()
 
+    // trimmed down clauses ready to be quickly relocated to the heap
     this.clauses = this.dload(fname)
 
-    this.cls = this.toNums(clauses)
+    // symbol table made of map + reverse map from ints to syms
+    this.cls = Engine.toNums(this.clauses)
 
     this.query = this.init()
 
     this.vmaps = this.vcreate(MAXIND)
-    this.imaps = this.index(clauses, vmaps)
+    this.imaps = this.index(this.clauses, vmaps)
   }
 
   /**
@@ -246,7 +251,7 @@ class Engine {
   static mapExpand(Wss) {
     let Rss = new []
     for (let Ws of Wss) {
-      let Hss = maybeExpand(Ws)
+      let Hss = Engine.maybeExpand(Ws)
       if (null == Hss) {
         let ws = []
         for (let i = 0; i < ws.length; i++) {
@@ -278,7 +283,7 @@ class Engine {
       let cs = []
       let gs = []
 
-      let Rss = mapExpand(Wss)
+      let Rss = Engine.mapExpand(Wss)
       let k = 0
       for (let ws of Rss) {
 
@@ -346,7 +351,7 @@ class Engine {
         // finding the A among refs
         let leader = -1
         for (let j of Is.toArray()) {
-          if (A == tagOf(cs.get(j))) {
+          if (A == Engine.tagOf(cs.get(j))) {
             leader = j
             break;
           }
@@ -377,7 +382,7 @@ class Engine {
       final int[] tgs = gs.toArray();
       final Clause C = putClause(cs.toArray(), tgs, neck);
       */
-      let neck = 1 == gs.size() ? cs.size() : detag(gs.get(1))
+      let neck = 1 == gs.size() ? cs.size() : Engine.detag(gs.get(1))
       let tgs = gs.toArray()
       let C = putClause(cs.toArray(), tgs, neck)
 
@@ -410,9 +415,9 @@ class Engine {
         w = this.addSym(s)
       } else
         //pp("bad in encode=" + t + ":" + s);
-        return tag(BAD, 666)
+        return Engine.tag(BAD, 666)
     }
-    return tag(t, w)
+    return Engine.tag(t, w)
   }
 
   /**
@@ -422,21 +427,21 @@ class Engine {
   static isVAR(x) {
     //final int t = tagOf(x);
     //return V == t || U == t;
-    return tagOf(x) < 2
+    return Engine.tagOf(x) < 2
   }
 
   /**
    * returns the heap cell another cell points to
    */
   getRef(x) {
-    return this.heap[detag(x)]
+    return this.heap[Engine.detag(x)]
   }
 
   /*
    * sets a heap cell to point to another one
    */
   setRef(w, r) {
-    this.heap[detag(w)] = r
+    this.heap[Engine.detag(w)] = r
   }
 
   /**
@@ -482,8 +487,8 @@ class Engine {
    * raw display of a term - to be overridden
    */
   showTerm(x) {
-      if (Number.isInteger(x))
-        return this.showTerm(this.exportTerm(x))
+    if (Number.isInteger(x))
+      return this.showTerm(this.exportTerm(x))
     if (x instanceof Array)
       return x.join(',')
     return '' + x
@@ -514,10 +519,10 @@ class Engine {
    * including a displayer
    */
   exportTerm(x) {
-    x = deref(x)
+    x = this.deref(x)
 
-    let t = tagOf(x)
-    let w = detag(x)
+    let t = Engine.tagOf(x)
+    let w = Engine.detag(x)
 
     let res = null
     switch (t) {
@@ -534,9 +539,9 @@ class Engine {
       case R: {
 
         let a = this.heap[w]
-        if (A != tagOf(a))
+        if (A != Engine.tagOf(a))
           return "*** should be A, found=" + showCell(a)
-        let n = detag(a)
+        let n = Engine.detag(a)
         let arr = Array(n).fill()
         let k = w + 1
         for (let i = 0; i < n; i++) {
@@ -560,16 +565,16 @@ class Engine {
    */
   static getSpine(cs) {
     let a = cs[1]
-    let w = detag(a)
+    let w = Engine.detag(a)
     let rs = Array(w - 1).fill()
     for (let i = 0; i < w - 1; i++) {
       let x = cs[3 + i]
-      let t = tagOf(x)
+      let t = Engine.tagOf(x)
       if (R != t) {
         pp("*** getSpine: unexpected tag=" + t)
         return null
       }
-      rs[i] = detag(x)
+      rs[i] = Engine.detag(x)
     }
     //Main.println("");
     return rs;
@@ -661,16 +666,16 @@ class Engine {
    */
   unify(base) {
     while (!this.ustack.isEmpty()) {
-      let x1 = deref(ustack.pop())
-      let x2 = deref(ustack.pop())
+      let x1 = this.deref(ustack.pop())
+      let x2 = this.deref(ustack.pop())
       if (x1 != x2) {
-        let t1 = tagOf(x1)
-        let t2 = tagOf(x2)
-        let w1 = detag(x1)
-        let w2 = detag(x2)
+        let t1 = Engine.tagOf(x1)
+        let t2 = Engine.tagOf(x2)
+        let w1 = Engine.detag(x1)
+        let w2 = Engine.detag(x2)
 
-        if (isVAR(x1)) { /* unb. var. v1 */
-          if (isVAR(x2) && w2 > w1) { /* unb. var. v2 */
+        if (Engine.isVAR(x1)) { /* unb. var. v1 */
+          if (Engine.isVAR(x2) && w2 > w1) { /* unb. var. v2 */
             heap[w2] = x1
             if (w2 <= base) {
               trail.push(x2)
@@ -681,7 +686,7 @@ class Engine {
               trail.push(x1)
             }
           }
-        } else if (isVAR(x2)) { /* x1 is NONVAR */
+        } else if (Engine.isVAR(x2)) { /* x1 is NONVAR */
           heap[w2] = x1
           if (w2 <= base) {
             trail.push(x2)
@@ -725,7 +730,7 @@ class Engine {
    */
   putClause(cs, gs, neck) {
     let base = size()
-    let b = tag(V, base)
+    let b = Engine.tag(V, base)
     let len = cs.length
     this.pushCells(b, 0, len, cs)
     for (let i = 0; i < gs.length; i++) {
@@ -800,7 +805,7 @@ class Engine {
     if (null != G.xs)
       return
     let p = 1 + Engine.detag(goal)
-    let n = Math.min(MAXIND, this.detag(this.getRef(goal)))
+    let n = Math.min(MAXIND, Engine.detag(this.getRef(goal)))
 
     let xs = new int[MAXIND]
     for (let i = 0; i < n; i++) {
@@ -820,8 +825,8 @@ class Engine {
     let n = Engine.detag(this.getRef(ref))
     let xs = new int[MAXIND]
     for (let i = 0; i < MAXIND && i < n; i++) {
-      let cell = deref(heap[p + i])
-      xs[i] = cell2index(cell)
+      let cell = this.deref(heap[p + i])
+      xs[i] = this.cell2index(cell)
     }
     return xs
   }
@@ -1020,7 +1025,7 @@ class Engine {
   run() {
     let ctr = 0
     for (;; ctr++) {
-      let A = ask()
+      let A = this.ask()
       if (null == A) {
         break
       }
@@ -1031,7 +1036,6 @@ class Engine {
 
   // indexing extensions - ony active if START_INDEX clauses or more
 
-  //public static IntMap[] vcreate(final int l)
   vcreate(l)
   {
     let vss = []
@@ -1040,7 +1044,6 @@ class Engine {
     return vss
   }
 
-  //final static void put(final IMap<Integer>[] imaps, final IntMap[] vss, final int[] keys, final int val)
   put(imaps, vss, keys, val)
   {
     for (let i = 0; i < imaps.length; i++) {
@@ -1053,7 +1056,6 @@ class Engine {
     }
   }
 
-  //final IMap<Integer>[] index(final Clause[] clauses, final IntMap[] vmaps)
   index(clauses, vmaps)
   {
     if (clauses.length < START_INDEX)

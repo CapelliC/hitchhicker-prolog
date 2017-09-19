@@ -6,47 +6,48 @@ class IntList {
         this.tail = Xs
     }
 
-    static isEmpty(final IntList Xs) {
-return null == Xs;
+    static isEmpty(Xs) {
+        return null == Xs
+    }
+
+    static head(Xs) {
+        return Xs.head
+    }
+
+    static tail(Xs) {
+        return Xs.tail
+    }
+
+    static cons(X, Xs) {
+        return new IntList(X, Xs)
+    }
+
+    static app(xs, Ys) {
+        let Zs = Ys
+        for (let i = xs.length - 1; i >= 0; i--) {
+            Zs = IntList.cons(xs[i], Zs)
+        }
+        return Zs
+    }
+
+    static toInts(Xs) {
+        let is = new IntStack()
+        while (!isEmpty(Xs)) {
+            is.push(head(Xs))
+            Xs = IntList.tail(Xs)
+        }
+        return is
+    }
+
+    static len(Xs) {
+        return IntList.toInts(Xs).length
+    }
+
+    toString() {
+        return '['+ IntList.toInts(this).join(',') + ']'
+    }
 }
 
-static final int head(final IntList Xs) {
-return Xs.head;
-}
+IntList.empty = null
 
-static final IntList empty = null;
-
-static final IntList tail(final IntList Xs) {
-return Xs.tail;
-}
-
-static final IntList cons(final int X, final IntList Xs) {
-return new IntList(X, Xs);
-}
-
-static final IntList app(final int[] xs, final IntList Ys) {
-IntList Zs = Ys;
-for (int i = xs.length - 1; i >= 0; i--) {
-Zs = cons(xs[i], Zs);
-}
-return Zs;
-}
-
-static final IntStack toInts(IntList Xs) {
-final IntStack is = new IntStack();
-while (!isEmpty(Xs)) {
-is.push(head(Xs));
-Xs = tail(Xs);
-}
-return is;
-}
-
-static final int len(final IntList Xs) {
-return toInts(Xs).size();
-}
-
-@Override
-public String toString() {
-return toInts(this).toString();
-}
-}
+exports.IntList = IntList
