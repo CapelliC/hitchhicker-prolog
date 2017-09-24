@@ -6,7 +6,7 @@ The reference document: http://www.cse.unt.edu/~tarau/research/2017/eng.pdf
 
 ---------
 
-Some interesting properties, from the Abstract of the reference:
+Some interesting properties, from the abstract:
 
   * the heap representation of terms and the abstract machine instruction encodings are the same
   * no dedicated code area is used as the code is placed directly on the heap
