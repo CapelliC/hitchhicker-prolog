@@ -36,7 +36,7 @@ class Engine {
   /**
    * Builds a new engine from a natural-language style assembler.nl file
    */
-  constructor(fname) {
+  constructor(asm_nl_source) {
     this.syms = []
     this.slist = []
 
@@ -46,7 +46,7 @@ class Engine {
     this.ustack = new IntStack()
 
     // trimmed down clauses ready to be quickly relocated to the heap
-    this.clauses = this.dload(fname)
+    this.clauses = this.dload(asm_nl_source)
 
     // symbol table made of map + reverse map from ints to syms
     this.cls = Engine.toNums(this.clauses)

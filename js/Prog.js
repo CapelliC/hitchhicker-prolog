@@ -18,11 +18,11 @@ class Prog /*extends Engine*/ {
   }
 
   static isListCons(name) {
-    return "."===name || "[|]"===name || "list"===name
+    return [".","[|]","list"].some(e => e === name)
   }
 
   static isOp(name) {
-    return "/"===name || "-"===name || "+"===name || "="===name
+    return ["/","-","+","="].some(e => e === name)
   }
 
   static st0(args) {
