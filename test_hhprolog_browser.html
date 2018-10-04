@@ -110,10 +110,10 @@ if
 //trace = function() {}
 
     const prog = new Prog(queens)
-    prog.ppCode()
-    trace('RUN')
+    //prog.ppCode()
+    //trace('RUN')
     const t0 = Date.now()
-    prog.run()
+    prog.run(true)
     trace('elapsed secs', (Date.now() - t0) / 1000)
 
 </script>

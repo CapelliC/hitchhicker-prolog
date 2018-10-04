@@ -1,5 +1,5 @@
 // test hhprolog.js in nodeJS
-var m = require('./hhprolog.js')
+var m = require('./hhprolog-es6.js')
 
 const queens = `
 place_queen I _0 _1 _2 and
