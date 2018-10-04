@@ -128,14 +128,12 @@ function Toks() {
                     Ws.push("c:" + t.s)
                 break
             case ATOM:
+            case NIL:
                 Ws.push("c:" + t.s)
                 break
 
             default:
-                if (t.s === "nil")
-                    Ws.push("c:" + t.s)
-                else
-                    throw 'unknown token:'+JSON.stringify(t)
+                throw 'unknown token:'+JSON.stringify(t)
             }
         return Wsss
     }
