@@ -22,7 +22,7 @@ const LIST  = "list"
 const LISTS = "lists"
 const IS    = "is"  // ?
 
-export class Toks {
+class Toks {
 
     makeToks(s) {
 
@@ -55,7 +55,7 @@ export class Toks {
         while (r = token(e.exec(s))) {
             if (r.t !== SPACE)
                 tokens.push(r)
-            s = s.substr(r.s.length)
+            s = s.substring(r.s.length)
         }
         if (s.length)
             throw ` error at '${s}'`
@@ -133,3 +133,5 @@ export class Toks {
         return Wsss
     }
 }
+
+exports.Toks = Toks

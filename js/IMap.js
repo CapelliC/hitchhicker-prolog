@@ -13,16 +13,16 @@ class IMap extends Map {
   }
 
   put(key, val) {
-    let vals = map.get(key)
+    let vals = this.map.get(key)
     if (null == vals) {
       vals = new IntMap()
-      map.put(key, vals)
+      this.map.put(key, vals)
     }
     return vals.add(val)
   }
 
   get(key) {
-    let s = map.get(key)
+    let s = this.map.get(key)
     if (null == s) {
       s = new IntMap()
     }
@@ -33,13 +33,13 @@ class IMap extends Map {
     let vals = this.get(key)
     let ok = vals.delete(val)
     if (vals.isEmpty()) {
-      map.remove(key)
+      this.map.remove(key)
     }
     return ok
   }
 
   remove(key) {
-    return null != map.remove(key)
+    return null != this.map.remove(key)
   }
 
   size() {

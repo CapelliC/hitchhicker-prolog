@@ -177,17 +177,17 @@ class Engine {
   }
 
   getTop() {
-    return this.top;
+    return this.top
   }
 
   setTop(top) {
-    return this.top = top;
+    return this.top = top
   }
 
   clear() {
     //for (int i = 0; i <= top; i++)
     //heap[i] = 0;
-    this.top = -1;
+    this.top = -1
   }
 
   /**
@@ -196,26 +196,26 @@ class Engine {
    * element - which can be returned with peek().
    */
   push(i) {
-    this.heap[++this.top] = i;
+    this.heap[++this.top] = i
   }
 
   size() {
-    return this.top + 1;
+    return this.top + 1
   }
 
   /**
    * dynamic array operation: doubles when full
    */
   expand() {
-    let l = heap.length;
-    let newstack = new int[l << 1];
-    System.arraycopy(heap, 0, newstack, 0, l);
-    heap = newstack;
+    let l = heap.length
+    let newstack = new int[l << 1]
+    System.arraycopy(heap, 0, newstack, 0, l)
+    heap = newstack
   }
 
   ensureSize(more) {
     if (1 + top + more >= heap.length) {
-      expand();
+      expand()
     }
   }
 
@@ -353,7 +353,7 @@ class Engine {
         for (let j of Is.toArray()) {
           if (A == Engine.tagOf(cs.get(j))) {
             leader = j
-            break;
+            break
           }
         }
         if (-1 == leader) {
@@ -477,7 +477,7 @@ class Engine {
       case N:
       break;
       default:
-        pp("unexpected deref=" + this.showCell(x));
+        pp("unexpected deref=" + this.showCell(x))
     }
     //*/
     return x
@@ -619,7 +619,7 @@ class Engine {
   showCells(base, len) {
     let buf = new StringBuffer()
     for (let k = 0; k < len; k++) {
-      let instr = this.heap[base + k];
+      let instr = this.heap[base + k]
 
       buf.append("[" + (base + k) + "]")
       buf.append(this.showCell(instr))
@@ -752,7 +752,7 @@ class Engine {
    * pushes slice[from,to] of array cs of cells to heap
    */
   pushCells(b, from, to, base) {
-    this.ensureSize(to - from);
+    this.ensureSize(to - from)
     for (let i = from; i < to; i++) {
       this.push(this.relocate(b, this.heap[base + i]))
     }

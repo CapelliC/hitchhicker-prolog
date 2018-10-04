@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>hhprolog test</title>
+    <script src="hhprolog.js"></script>
+</head>
+<body>
+<script>
+
+// CC
+const mini = `
+a 1 .
+a 2 .
+goal Y 
+if
+  a Y .
+`
+
+const memb = `
+memb E _0 and
+  _0 holds list E _1 .
+
+memb E _0 and
+  _0 holds list _1 T 
+if
+  memb E T .
+
+goal E 
+if
+  memb E _0 and
+  _0 lists 0 1 2 3 4 5 6 7 8 9 10 11 .
+`
+
+// PT
+const add = `
+add 0 X X .
+
+add _0 Y _1 and
+  _0 holds s X and
+  _1 holds s Z 
+if
+  add X Y Z .
+
+goal R 
+if
+  add _0 _1 R and
+  _0 holds s _2 and
+  _2 holds s 0 and
+  _1 holds s _3 and
+  _3 holds s 0 .
+
+`
+const queens = `
+place_queen I _0 _1 _2 and
+  _0 holds list I _3 and
+  _1 holds list I _4 and
+  _2 holds list I _5 .
+
+place_queen I _0 _1 _2 and
+  _0 holds list _3 Cs and
+  _1 holds list _4 Us and
+  _2 holds list _5 Ds 
+if
+  place_queen I Cs Us Ds .
+
+place_queens nil _0 _1 _2 .
+
+place_queens _0 Cs Us _1 and
+  _0 holds list I Is and
+  _1 holds list _2 Ds 
+if
+  place_queens Is Cs _3 Ds and
+  _3 holds list _4 Us and
+  place_queen I Cs Us Ds .
+
+gen_places nil nil .
+
+gen_places _0 _1 and
+  _0 holds list _2 Qs and
+  _1 holds list _3 Ps 
+if
+  gen_places Qs Ps .
+
+qs Qs Ps 
+if
+  gen_places Qs Ps and
+  place_queens Qs Ps _0 _1 .
+
+goal Ps 
+if
+  qs _0 Ps and
+  _0 lists 0 1 2 3 4 5 6 7 8 9 10 11 .
+
+`
+
+/*
+    const tokenizer = new Toks()
+    trace(tokenizer.makeToks(add))
+    trace()
+    trace(tokenizer.toSentences(add))
+    trace()
+*/
+/*
+    const engine = new Engine(mini)
+    trace()
+    engine.run()
+*/
+//trace = function() {}
+
+    const prog = new Prog(queens)
+    prog.ppCode()
+    trace('RUN')
+    const t0 = Date.now()
+    prog.run()
+    trace('elapsed secs', (Date.now() - t0) / 1000)
+
+</script>
+</body>

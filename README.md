@@ -19,3 +19,11 @@ Some interesting properties, from the abstract:
   * performance of a basic interpreter implementing our design is within a factor of 2 of a highly optimized WAM-based system
 
 --------
+
+Ported to plain Javascript, simplifying somewhat the code.
+Running in Firefox, performance are about 1/3 of Java 8.
+
+Several data structures have been replaced by arrays constructs:
+  IntList, IntStack, IntMap, ObStack
+
+IMap currently not (yet) used.
