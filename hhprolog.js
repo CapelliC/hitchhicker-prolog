@@ -14,7 +14,7 @@
 
 var T = JSON.stringify
 
-context.trace = function() {
+var trace = function trace() {
     /*
     var s = ''
     for (var a = 0; a < arguments.length; ++a)
@@ -32,6 +32,7 @@ context.trace = function() {
         e => typeof e === 'string' ? e : JSON.stringify(e)
     ).join(' '))
 }
+context.trace = trace
 
 // RegExes set
 var SPACE = '\\s+'
@@ -660,6 +661,15 @@ Engine.prototype.unwindTrail = function(savedTop) {
  * non-variable cell
  */
 Engine.prototype.deref = function(x) {
+    while ((-x & 7) < 2) {
+        var r = this.heap[-x >> 3]
+        if (r == x)
+            break
+        x = r
+    }
+    return x
+}
+Engine.prototype._orig_deref = function(x) {
 //trace("deref", x, tagOf(x), detag(x));
     while (isVAR(x)) {
         var r = this.getRef(x)
@@ -678,6 +688,7 @@ Engine.prototype.deref = function(x) {
     default:
         throw "unexpected deref=" + this.showCell(x)
     }
+
 //trace("x", x, tagOf(x), detag(x));
     return x
 }
@@ -1418,4 +1429,4 @@ context.Toks = Toks // for initial debugging
 context.Engine = Engine
 context.Prog = Prog
 
-})(self);
+})(typeof module !== 'undefined' ? module.exports : self);

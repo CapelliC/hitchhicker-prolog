@@ -27,3 +27,6 @@ Several data structures have been replaced by arrays constructs:
   IntList, IntStack, IntMap, ObStack
 
 IMap currently not (yet) used.
+
+Available to run in browsers (see test_hhprolog_browser.html)
+or NodeJS (see test_hhprolog_node.js).
