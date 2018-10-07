@@ -135,7 +135,7 @@ function Spine6(gs0, base, gs, ttop, k, cs) {
     xs   : [],
   }
 }
-var Spine2 = (hd, ttop)=>{
+function Spine2(hd, ttop) {
   return {
     hd   : hd,  
     base : 0,   
