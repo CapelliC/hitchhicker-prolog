@@ -1,7 +1,8 @@
 ;(function(context) {
 "use strict";
 
-var pp = ()=>{
+function pp() {
+  /*
   var msg = Array.from(arguments).map(
     e => typeof e === 'string' ? e : JSON.stringify(e)
   ).join(' ')
@@ -9,32 +10,43 @@ var pp = ()=>{
     document.write('<pre>' + msg + '</pre>')
   else
     console.log(msg)
+  */
+console.trace()
+console.log('pp', arguments.length)
+  const msg = Array.from(arguments).map((e,i) => {
+    console.log(e,i)
+    return typeof e === 'string' ? e : JSON.stringify(e)
+  })
+  if (document)
+    document.write('<pre>' + msg + '</pre>')
+  else
+    console.log(msg)
 }
 
-var SPACE = '\\s+'
-var ATOM  = '[a-z]\\w*'
-var VAR   = '[A-Z_]\\w*'
-var NUM   = '-?\\d+'
-var DOT   = '\\.'
+const SPACE = '\\s+'
+const ATOM  = '[a-z]\\w*'
+const VAR   = '[A-Z_]\\w*'
+const NUM   = '-?\\d+'
+const DOT   = '\\.'
 
-var IF    = "if"
-var AND   = "and"
-var HOLDS = "holds"
+const IF    = "if"
+const AND   = "and"
+const HOLDS = "holds"
 
-var NIL   = "nil"
-var LISTS = "lists"
-var IS    = "is"  // ?
+const NIL   = "nil"
+const LISTS = "lists"
+const IS    = "is"  // ?
 
-function Toks() {
-  this.makeToks = (s)=>{
-    var e = new RegExp(`(${SPACE})|(${ATOM})|(${VAR})|(${NUM})|(${DOT})`)
+class Toks {
+  makeToks(s) {
+    const e = new RegExp(`(${SPACE})|(${ATOM})|(${VAR})|(${NUM})|(${DOT})`)
     function token(r) {
       if (r && r.index === 0) {
         function tkAtom(s) {
-          var k = [IF, AND, HOLDS, NIL, LISTS, IS].indexOf(s)
+          const k = [IF, AND, HOLDS, NIL, LISTS, IS].indexOf(s)
           return {t: k < 0 ? ATOM : s, s: s}
         }
-        var tkVar=s=>{
+        function tkVar(s) {
          return { t: VAR, s: r[0] }
         }
         function tkNum(s) {
@@ -58,7 +70,7 @@ function Toks() {
     return tokens
   }
 
-  this.toSentences = (s)=>{
+  toSentences(s) {
     var Wsss = []
     var Wss = []
     var Ws = []
@@ -104,7 +116,7 @@ function Toks() {
     return Wsss
   }
 }
-var Clause = (len, hgs, base, neck, xs)=>{
+function Clause(len, hgs, base, neck, xs) {
   return {
     hgs  : hgs,
     base : base,
@@ -113,7 +125,7 @@ var Clause = (len, hgs, base, neck, xs)=>{
     xs   : xs,
   }
 }
-var Spine6 = (gs0, base, gs, ttop, k, cs)=>{
+function Spine6(gs0, base, gs, ttop, k, cs) {
   return {
     hd   : gs0[0],
     base : base,
@@ -136,22 +148,32 @@ var Spine2 = (hd, ttop)=>{
   }
 }
 
-var MINSIZE = 1 << 15
-var MAXIND = 3
-var START_INDEX = 20
+const MINSIZE = 1 << 15
+const MAXIND = 3
+const START_INDEX = 20
 
-var V = 0
-var U = 1
-var R = 2
-var C = 3
-var N = 4
-var A = 5
-var BAD = 7
+const V = 0
+const U = 1
+const R = 2
+const C = 3
+const N = 4
+const A = 5
+const BAD = 7
 
-var Engine = function Engine(asm_nl_source) {
-
-  this.syms = []
-  this.addSym = (sym)=>{
+class Engine {
+  constructor(asm_nl_source) {
+    this.syms = []
+    this.makeHeap(50)
+    this.trail = []
+    this.ustack = []
+    this.spines = []
+    this.clauses = this.dload(asm_nl_source)
+    this.cls = toNums(this.clauses)
+    this.query = this.init()
+    this.vmaps = this.vcreate(MAXIND)
+    this.imaps = this.index(this.clauses, this.vmaps)
+  }
+  addSym(sym) {
     var I = this.syms.indexOf(sym)
     if (I === -1) {
       I = this.syms.length
@@ -159,38 +181,35 @@ var Engine = function Engine(asm_nl_source) {
     }
     return I
   }
-  this.getSym = (w)=>{
-      if (w < 0 || w >= this.syms.length)
-          throw "BADSYMREF=" + w
-      return this.syms[w]
+  getSym(w) {
+    if (w < 0 || w >= this.syms.length)
+      throw "BADSYMREF=" + w
+    return this.syms[w]
   }
-  
-  this.makeHeap = (size)=>{
-      size = size || MINSIZE
-      this.heap = Array(size).fill(0)
-      this.clear()
+  makeHeap(size) {
+    size = size || MINSIZE
+    this.heap = Array(size).fill(0)
+    this.clear()
   }
-  this.clear = ()=>{
-      for (var i = 0; i <= this.top; i++)
-          this.heap[i] = 0
-      this.top = -1
+  clear() {
+    for (var i = 0; i <= this.top; i++)
+      this.heap[i] = 0
+    this.top = -1
   }
-  this.push = (i)=>{
-      this.heap[++this.top] = i
+  push(i) {
+    this.heap[++this.top] = i
   }
-  this.size = ()=>{
-      return this.top + 1
+  size() {
+    return this.top + 1
   }
-  
-  this.expand = ()=>{
-      this.heap.length = this.heap.length * 2
+  expand() {
+    this.heap.length = this.heap.length * 2
   }
-  this.ensureSize = (more)=>{
-      if (1 + this.top + more >= this.heap.length)
-          this.expand()
+  ensureSize(more) {
+    if (1 + this.top + more >= this.heap.length)
+      this.expand()
   }
-
-  this.dload = (s)=>{
+  dload(s) {
     var Wsss = (new Toks).toSentences(s)
     var Cs = []
     for (var Wss of Wsss) {
@@ -264,10 +283,9 @@ var Engine = function Engine(asm_nl_source) {
     }
     return Cs
   }
-
-  this.getRef=x=>this.heap[detag(x)]
-  this.setRef=(w, r)=>{ this.heap[detag(w)] = r }
-  this.encode=(t, s)=>{
+  getRef(x) { return this.heap[detag(x)] }
+  setRef(w, r) { this.heap[detag(w)] = r }
+  encode(t, s) {
     var w = parseInt(s)
     if (isNaN(w)) {
       if (C == t)
@@ -277,13 +295,13 @@ var Engine = function Engine(asm_nl_source) {
     }
     return tag(t, w)
   }
-  this.unwindTrail=(savedTop)=>{
+  unwindTrail(savedTop) {
     while (savedTop < this.trail.length - 1) {
       var href = this.trail.pop()
       this.setRef(href, href)
     }
   }
-  this.deref=(x)=>{
+  deref(x) {
     while (isVAR(x)) {
       var r = this.getRef(x)
       if (r == x)
@@ -292,20 +310,21 @@ var Engine = function Engine(asm_nl_source) {
     }
     return x
   }
-  this.showTerm=(x)=>{
+  showTerm(x) {
+console.log('Engine.showTerm', x)
     if (typeof x === 'number')
       return this.showTerm(this.exportTerm(x))
     if (x instanceof Array)
       return x.join(',')
     return '' + x
   }
-  this.ppTrail=()=>{
+  ppTrail() {
     for (var i = 0; i <= array_last(this.trail, -1); i++) {
       var t = this.trail[i]
       pp("trail[" + i + "]=" + this.showCell(t) + ":" + this.showTerm(t))
     }
   }
-  this.exportTerm=x=>{
+  exportTerm(x) {
     x = this.deref(x)
     var t = tagOf(x)
     var w = detag(x)
@@ -339,7 +358,7 @@ var Engine = function Engine(asm_nl_source) {
     }
     return res
   }
-  this.showCell=(w)=>{
+  showCell(w) {
     var t = tagOf(w)
     var val = detag(w)
     var s = null
@@ -367,7 +386,7 @@ var Engine = function Engine(asm_nl_source) {
     }
     return s
   }
-  this.showCells2=(base, len)=>{
+  showCells2(base, len) {
     var buf = ''
     for (var k = 0; k < len; k++) {
       var instr = this.heap[base + k]
@@ -375,18 +394,18 @@ var Engine = function Engine(asm_nl_source) {
     }
     return buf
   }
-  this.showCells1=(cs)=>{
+  showCells1(cs) {
     var buf = ''
     for (var k = 0; k < cs.length; k++)
       buf += "[" + k + "]" + this.showCell(cs[k]) + " "
     return buf
   }
 
-  this.ppc=C=>{}
-  this.ppGoals=gs=>{}
-  this.ppSpines=()=>{}
+  ppc(C) {}
+  ppGoals(gs) {}
+  ppSpines() {}
 
-  this.unify=base=>{
+  unify(base) {
     while (this.ustack.length) {
       var x1 = this.deref(this.ustack.pop())
       var x2 = this.deref(this.ustack.pop())
@@ -419,7 +438,7 @@ var Engine = function Engine(asm_nl_source) {
     return true
   }
 
-  this.unify_args=(w1, w2)=>{
+  unify_args(w1, w2) {
     var v1 = this.heap[w1]
     var v2 = this.heap[w2]
     // both should be A
@@ -441,7 +460,7 @@ var Engine = function Engine(asm_nl_source) {
     }
     return true
   }
-  this.putClause=(cs, gs, neck)=>{
+  putClause(cs, gs, neck) {
     var base = this.size()
     var b = tag(V, base)
     var len = cs.length
@@ -451,22 +470,21 @@ var Engine = function Engine(asm_nl_source) {
     var xs = this.getIndexables(gs[0])
     return Clause(len, gs, base, neck, xs)
   }
-  this.pushCells1=(b, from, to, base)=>{
+  pushCells1(b, from, to, base) {
     this.ensureSize(to - from)
     for (var i = from; i < to; i++)
         this.push(relocate(b, this.heap[base + i]))
   }
-  this.pushCells2=(b, from, to, cs)=>{
+  pushCells2(b, from, to, cs) {
     this.ensureSize(to - from)
     for (var i = from; i < to; i++)
         this.push(relocate(b, cs[i]))
   }
-  this.pushHead=(b, C)=>{
+  pushHead(b, C) {
     this.pushCells1(b, 0, C.neck, C.base)
-    var head = C.hgs[0]
-    return relocate(b, head)
+    return relocate(b, C.hgs[0])
   }
-  this.pushBody=(b, head, C)=>{
+  pushBody(b, head, C) {
     this.pushCells1(b, C.neck, C.len, C.base)
     var l = C.hgs.length
     var gs = Array(l).fill(0)
@@ -477,7 +495,7 @@ var Engine = function Engine(asm_nl_source) {
     }
     return gs
   }
-  this.makeIndexArgs=(G)=>{
+  makeIndexArgs(G) {
     var goal = G.gs[0]
     if (G.xs.length)
       return
@@ -493,7 +511,7 @@ var Engine = function Engine(asm_nl_source) {
     if (this.imaps) throw "IMap TBD"
   }
 
-  this.getIndexables=(ref)=>{
+  getIndexables(ref) {
     var p = 1 + detag(ref)
     var n = detag(this.getRef(ref))
     var xs = Array(MAXIND).fill(0)
@@ -503,7 +521,7 @@ var Engine = function Engine(asm_nl_source) {
     }
     return xs
   }
-  this.cell2index=(cell)=>{
+  cell2index(cell) {
     var x = 0
     var t = tagOf(cell)
     switch (t) {
@@ -517,7 +535,7 @@ var Engine = function Engine(asm_nl_source) {
     }
     return x
   }
-  this.match=(xs, C0)=>{
+  match(xs, C0) {
     for (var i = 0; i < MAXIND; i++) {
       var x = xs[i]
       var y = C0.xs[i]
@@ -528,7 +546,7 @@ var Engine = function Engine(asm_nl_source) {
     }
     return true
   }
-  this.unfold=(G)=>{
+  unfold(G) {
     var ttop = this.trail.length - 1
     var htop = this.top
     var base = htop + 1
@@ -561,21 +579,21 @@ var Engine = function Engine(asm_nl_source) {
     }
     return null
   }
-  this.getQuery=()=>array_last(this.clauses, null)
-  this.init=()=>{
+  getQuery() { return array_last(this.clauses, null) }
+  init() {
     var base = this.size()
     var G = this.getQuery()
     var Q = Spine6(G.hgs, base, [], array_last(this.trail, -1), 0, this.cls)
     this.spines.push(Q)
     return Q
   }
-  this.answer=ttop=>Spine2(this.spines[0].hd, ttop)
-  this.popSpine=()=>{
+  answer(ttop) { return Spine2(this.spines[0].hd, ttop) }
+  popSpine() {
     var G = this.spines.pop()
     this.unwindTrail(G.ttop)
     this.top = G.base - 1
   }
-  this.yield_=()=>{
+  yield_() {
     while (this.spines.length) {
       var G = array_last(this.spines, null)
       var C = this.unfold(G)
@@ -591,8 +609,8 @@ var Engine = function Engine(asm_nl_source) {
     }
     return null
   }
-  this.heap2s=()=>'[' + this.top + ' ' + this.heap.slice(0,this.top).map((x,y) => heapCell(x)).join(',') + ']'
-  this.ask=()=>{
+  heap2s() { return '[' + this.top + ' ' + this.heap.slice(0,this.top).map((x,y) => heapCell(x)).join(',') + ']' }
+  ask() {
     this.query = this.yield_()
     if (null == this.query)
       return null
@@ -601,10 +619,11 @@ var Engine = function Engine(asm_nl_source) {
     this.unwindTrail(this.query.ttop)
     return R
   }
-  this.run=(print_ans)=>{
+  run(print_ans) {
     var ctr = 0
     for (;; ctr++) {
       var A = this.ask()
+console.log('A', A)
       if (null == A)
         break
       if (print_ans)
@@ -612,13 +631,13 @@ var Engine = function Engine(asm_nl_source) {
     }
     pp("TOTAL ANSWERS=" + ctr)
   }
-  this.vcreate=(l)=>{
+  vcreate(l) {
     var vss = []
     for (var i = 0; i < l; i++)
       vss.push([])
     return vss
   }
-  this.put=(imaps, vss, keys, val)=>{
+  put(imaps, vss, keys, val) {
     for (var i = 0; i < imaps.length; i++) {
       var key = keys[i]
       if (key != 0)
@@ -627,7 +646,7 @@ var Engine = function Engine(asm_nl_source) {
         vss[i].add(val)
     }
   }
-  this.index=(clauses, vmaps)=>{
+  index(clauses, vmaps) {
     if (clauses.length < START_INDEX)
       return null
     var T = JSON.stringify
@@ -644,21 +663,12 @@ var Engine = function Engine(asm_nl_source) {
     pp("")
     return imaps
   }
-  this.makeHeap(50)
-  this.trail = []
-  this.ustack = []
-  this.spines = []
-  this.clauses = this.dload(asm_nl_source)
-  this.cls = toNums(this.clauses)
-  this.query = this.init()
-  this.vmaps = this.vcreate(MAXIND)
-  this.imaps = this.index(this.clauses, this.vmaps)
 }
 
-var tag=(t, w) => -((w << 3) + t)
-var detag=w => -w >> 3
-var tagOf=w => -w & 7
-var tagSym=t =>
+const tag=(t, w)=> -((w << 3) + t)
+const detag=w=> -w >> 3
+const tagOf=w=> -w & 7
+const tagSym=t=>
   t === V ? "V" :
   t === U ? "U" :
   t === R ? "R" :
@@ -666,10 +676,10 @@ var tagSym=t =>
   t === N ? "N" :
   t === A ? "A" : "?"
 
-var heapCell = (w) => tagSym(tagOf(w))+":"+detag(w)+"["+w+"]"
-var isVAR = (x) => tagOf(x) < 2
+const heapCell = (w) => tagSym(tagOf(w))+":"+detag(w)+"["+w+"]"
+const isVAR = (x) => tagOf(x) < 2
 
-var maybeExpand=(Ws)=>{
+function maybeExpand(Ws) {
   var W = Ws[0]
   if (W.length < 2 || "l:" !== W.substring(0, 2))
     return null
@@ -684,7 +694,7 @@ var maybeExpand=(Ws)=>{
   }
   return Rss
 }
-var mapExpand=(Wss)=>{
+function mapExpand(Wss) {
   var Rss = []
   for (var Ws of Wss) {
     var Hss = maybeExpand(Ws)
@@ -697,9 +707,9 @@ var mapExpand=(Wss)=>{
   return Rss
 }
 
-var toNums=(clauses)=>Array(clauses.length).fill().map((_, i) => i)
+const toNums=(clauses)=>Array(clauses.length).fill().map((_, i) => i)
 
-var getSpine=(cs)=>{
+function getSpine(cs) {
   var a = cs[1]
   var w = detag(a)
   var rs = Array(w - 1).fill()
@@ -712,13 +722,17 @@ var getSpine=(cs)=>{
   }
   return rs;
 }
-var relocate=(b, cell)=>tagOf(cell) < 3 ? cell + b : cell
-var array_last=(a, def)=>a.length ? a[a.length - 1] : def
-var hasClauses=S=>S.k < S.cs.length
-var hasGoals=(S)=>S.gs.length > 0
+const relocate=(b, cell)=>tagOf(cell) < 3 ? cell + b : cell
+const array_last=(a, def)=>a.length ? a[a.length - 1] : def
+const hasClauses=S=>S.k < S.cs.length
+const hasGoals=S=>S.gs.length > 0
 
-function Prog(s) {
-  this.ppCode=()=>{
+class Prog extends Engine {
+  constructor(s) {
+    super(s)
+  }
+  
+  ppCode() {
     pp("\nSYMS:")
     pp(this.syms)
     pp("\nCLAUSES:\n")
@@ -728,7 +742,7 @@ function Prog(s) {
     }
     pp("")
   }
-  this.showClause=(s)=>{
+  showClause(s) {
     var r = ''
     var l = s.hgs.length
     r += "---base:[" + s.base + "] neck: " + s.neck + "-----\n"
@@ -757,35 +771,33 @@ function Prog(s) {
       r += "\n"
     return r
   }
-  
-  this.showTerm=(O)=>
-    typeof O === 'number' ? Engine.prototype.showTerm.call(this, O)
-    : O instanceof Array ? st0(O)
-    : JSON.stringify(O)
-      
-  this.ppGoals=bs=>{
+  showTerm(O) {
+    if (typeof O === 'number')
+      return super.showTerm(O)
+    if (O instanceof Array)
+      return st0(O)
+    return JSON.stringify(O)
+  }
+  ppGoals(bs) {
     while (bs.length) {
       pp(this.showTerm(bs[0]))
       bs = bs.slice(1);
     }
   }
-  this.ppc=S=>{
+  ppc(S) {
     var bs = S.gs
     pp("\nppc: t=" + S.ttop + ",k=" + S.k + "len=" + bs.length)
     this.ppGoals(bs)
   }
-
-  Engine.call(this, s)
 }
-Prog.prototype = Object.create(Engine.prototype)
 
-var maybeNull=(O)=>
+const maybeNull=(O)=>
   null == O ? "$null" :
   O instanceof Array ? st0(O) :
   ''+O
-var isListCons=(name)=>"." === name || "[|]" === name || "list" === name
-var isOp=(name)=>"/" === name || "-" === name || "+" === name || "=" === name
-var st0=(args)=>{
+const isListCons=(name)=>"." === name || "[|]" === name || "list" === name
+const isOp=(name)=>"/" === name || "-" === name || "+" === name || "=" === name
+function st0(args) {
   var r = ''
   var name = ''+args[0]
   if (args.length == 3 && isOp(name)) {
