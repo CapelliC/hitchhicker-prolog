@@ -5,21 +5,10 @@ function pp() {
   var msg = Array.from(arguments).map(
     e => typeof e === 'string' ? e : JSON.stringify(e)
   ).join(' ')
-  if (document)
+  if (typeof document != 'undefined')
     document.write('<pre>' + msg + '</pre>')
   else
     console.log(msg)
-/*
-console.trace()
-console.log('pp', arguments.length)
-  const msg = Array.from(arguments).map((e,i) => {
-    console.log(e,i)
-    return typeof e === 'string' ? e : JSON.stringify(e)
-  })
-  if (document)
-    document.write('<pre>' + msg + '</pre>')
-  else
-    console.log(msg)*/
 }
 
 const SPACE = '\\s+'
@@ -28,10 +17,10 @@ const VAR   = '[A-Z_]\\w*'
 const NUM   = '-?\\d+'
 const DOT   = '\\.'
 
+// atom keywords
 const IF    = "if"
 const AND   = "and"
 const HOLDS = "holds"
-
 const NIL   = "nil"
 const LISTS = "lists"
 const IS    = "is"  // ?
