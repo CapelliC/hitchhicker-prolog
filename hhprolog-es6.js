@@ -2,7 +2,6 @@
 "use strict";
 
 function pp() {
-  /*
   var msg = Array.from(arguments).map(
     e => typeof e === 'string' ? e : JSON.stringify(e)
   ).join(' ')
@@ -10,7 +9,7 @@ function pp() {
     document.write('<pre>' + msg + '</pre>')
   else
     console.log(msg)
-  */
+/*
 console.trace()
 console.log('pp', arguments.length)
   const msg = Array.from(arguments).map((e,i) => {
@@ -20,7 +19,7 @@ console.log('pp', arguments.length)
   if (document)
     document.write('<pre>' + msg + '</pre>')
   else
-    console.log(msg)
+    console.log(msg)*/
 }
 
 const SPACE = '\\s+'
@@ -311,7 +310,6 @@ class Engine {
     return x
   }
   showTerm(x) {
-console.log('Engine.showTerm', x)
     if (typeof x === 'number')
       return this.showTerm(this.exportTerm(x))
     if (x instanceof Array)
@@ -623,7 +621,6 @@ console.log('Engine.showTerm', x)
     var ctr = 0
     for (;; ctr++) {
       var A = this.ask()
-console.log('A', A)
       if (null == A)
         break
       if (print_ans)
