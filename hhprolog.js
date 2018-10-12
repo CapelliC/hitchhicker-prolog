@@ -7,6 +7,7 @@
  * 
  * author: Carlo Capelli
  * license: MIT
+ * Copyright (c) 2017,2018 Carlo Capelli
  */
 ;(function(context) {
 

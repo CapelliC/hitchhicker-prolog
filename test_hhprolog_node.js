@@ -1,4 +1,10 @@
-// test hhprolog.js in nodeJS
+/*
+ * test hhprolog.js in nodeJS
+ * 
+ * Author: Carlo Capelli
+ * License: MIT
+ * Copyright (c) 2017,2018 Carlo Capelli
+*/
 var m = require('./hhprolog-es6.js')
 
 const queens = `

@@ -1,3 +1,9 @@
+/*
+ * Description: list data structure
+ * 
+ * Author: Carlo Capelli
+ * License: MIT
+ */
 ;(function(context) {
 "use strict";
 

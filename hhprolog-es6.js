@@ -1,3 +1,10 @@
+/*
+ * Description: hitchhicker Prolog
+ * 
+ * Author: Carlo Capelli
+ * License: MIT
+ * Copyright (c) 2017,2018 Carlo Capelli
+ */
 ;(function(context) {
 "use strict";
 
@@ -18,12 +25,12 @@ const NUM   = '-?\\d+'
 const DOT   = '\\.'
 
 // atom keywords
-const IF    = "if"
-const AND   = "and"
-const HOLDS = "holds"
-const NIL   = "nil"
-const LISTS = "lists"
-const IS    = "is"  // ?
+const IF    = 'if'
+const AND   = 'and'
+const HOLDS = 'holds'
+const NIL   = 'nil'
+const LISTS = 'lists'
+const IS    = 'is'  // ?
 
 class Toks {
   makeToks(s) {
@@ -34,16 +41,10 @@ class Toks {
           const k = [IF, AND, HOLDS, NIL, LISTS, IS].indexOf(s)
           return {t: k < 0 ? ATOM : s, s: s}
         }
-        function tkVar(s) {
-         return { t: VAR, s: r[0] }
-        }
-        function tkNum(s) {
-          return { t: NUM, s: s, n: parseInt(s) }
-        }
         if (r[1]) return { t: SPACE, s: r[0] }
         if (r[2]) return tkAtom(r[0])
-        if (r[3]) return tkVar(r[0])
-        if (r[4]) return tkNum(r[0])
+        if (r[3]) return { t: VAR, s: r[0] }
+        if (r[4]) return { t: NUM, s: r[0], n: parseInt(r[0]) }
         if (r[5]) return { t: DOT, s: r[0] }
       }
     }
@@ -833,7 +834,6 @@ function st0(args) {
   return r
 }
 
-context.trace = pp
 context.Prog = Prog
 
 })(typeof module !== 'undefined' ? module.exports : self);
