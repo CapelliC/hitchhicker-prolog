@@ -1,3 +1,11 @@
+/*
+ * Description: list data structure
+ * 
+ * Author: Carlo Capelli
+ * License: MIT
+ * Copyright (c) 2017,2018 Carlo Capelli
+ */
+
 const {List,list} = require('./list-es6.js')
 const tr = console.log
 
