@@ -8,8 +8,11 @@ Copyright (c) 2017,2018 Carlo Capelli
 <html>
 <head>
     <meta charset="utf-8">
-    <title>test hhprolog in browser</title>
-    <script src="hhprolog-es6.js"></script>
+    <title>test hhprolog (served by jsDelivr) in browser</title>
+    <script src="https://cdn.jsdelivr.net/gh/CapelliC/hitchhicker-prolog@3f475c0b1cc765ca642d24b6573ace998d93087b/hhprolog-es6.js"></script>
+    <!--
+    <script src="https://cdn.jsdelivr.net/gh/CapelliC/hitchhicker-prolog@1.0.0/hhprolog-es6.js"></script>
+    -->
 </head>
 <body>
 <script>
@@ -312,7 +315,7 @@ if
   _2 holds perm Y X .
 
 `
-    const prog = new Prog(lambdas)
+    const prog = new Prog(mini)
     prog.ppCode()
     const t0 = Date.now()
     prog.run(false)

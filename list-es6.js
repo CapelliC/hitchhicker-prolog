@@ -1,10 +1,11 @@
 /*
- * Description: list data structure
- * 
- * Author: Carlo Capelli
- * License: MIT
- * Copyright (c) 2017,2018 Carlo Capelli
- */
+Description: list data structure
+
+Author: Carlo Capelli
+Version: 1.0.0
+License: MIT
+Copyright (c) 2017,2018 Carlo Capelli
+*/
 ;(function(context) {
 "use strict";
 

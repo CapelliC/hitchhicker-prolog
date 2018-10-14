@@ -5,8 +5,9 @@
  * The reference document: http://www.cse.unt.edu/~tarau/research/2017/eng.pdf
  * Rewritten to vanilla Javascript.
  * 
- * author: Carlo Capelli
- * license: MIT
+ * Author: Carlo Capelli
+ * Version: 1.0.0
+ * License: MIT
  * Copyright (c) 2017,2018 Carlo Capelli
  */
 ;(function(context) {
