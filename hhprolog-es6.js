@@ -1,6 +1,10 @@
 /*
 Description: hitchhicker Prolog
 
+Original Java code by Paul Tarau.
+The reference document: http://www.cse.unt.edu/~tarau/research/2017/eng.pdf
+Rewritten to vanilla Javascript.
+
 Author: Carlo Capelli
 Version: 1.0.0
 License: MIT
@@ -107,31 +111,50 @@ class Toks {
     return Wsss
   }
 }
+
+/**
+ * representation of a clause
+ */
 function Clause(len, hgs, base, neck, xs) {
   return {
-    hgs  : hgs,
-    base : base,
-    len  : len,
-    neck : neck,
-    xs   : xs,
+    hgs  : hgs,     // head+goals pointing to cells in cs
+    base : base,    // heap where this starts
+    len  : len,     // length of heap slice
+    neck : neck,    // first after the end of the head
+    xs   : xs,      // indexables in head
   }
 }
+
+/**
+ * runtime representation of an immutable list of goals
+ * together with top of heap and trail pointers
+ * and current clause tried out by head goal
+ * as well as registers associated to it
+ *
+ * note that parts of this immutable lists
+ * are shared among alternative branches
+ */
 function Spine6(gs0, base, gs, ttop, k, cs) {
+    // creates a spine - as a snapshot of some runtime elements
   return {
-    hd   : gs0[0],
-    base : base,
+    hd   : gs0[0],  // head of the clause to which this corresponds
+    base : base,    // top of the heap when this was created
     gs   : gs0.concat(gs).slice(1),
-    ttop : ttop,
+    ttop : ttop,    // top of the trail when this was created
     k    : k,
-    cs   : cs,
+    cs   : cs,      // array of clauses known to be unifiable with top goal in gs
     xs   : [],
   }
 }
+
+/**
+ * creates a specialized spine returning an answer (with no goals left to solve)
+ */
 function Spine2(hd, ttop) {
   return {
     hd   : hd,  
     base : 0,   
-    gs   : [],  
+    gs   : [],  // goals - with the top one ready to unfold
     ttop : ttop,
     k    : -1,
     cs   : null,
@@ -143,6 +166,10 @@ const MINSIZE = 1 << 15
 const MAXIND = 3
 const START_INDEX = 20
 
+/**
+ * tags of our heap cells - that can also be seen as
+ * instruction codes in a compiled implementation
+ */
 const V = 0
 const U = 1
 const R = 2
@@ -151,19 +178,29 @@ const N = 4
 const A = 5
 const BAD = 7
 
+/**
+ * Implements execution mechanism
+ */
 class Engine {
+
+  // Builds a new engine from a natural-language style assembler.nl file
   constructor(asm_nl_source) {
     this.syms = []
     this.makeHeap(50)
     this.trail = []
     this.ustack = []
     this.spines = []
+
+    // trimmed down clauses ready to be quickly relocated to the heap
     this.clauses = this.dload(asm_nl_source)
+    
     this.cls = toNums(this.clauses)
     this.query = this.init()
     this.vmaps = this.vcreate(MAXIND)
     this.imaps = this.index(this.clauses, this.vmaps)
   }
+  
+  // places an identifier in the symbol table
   addSym(sym) {
     var I = this.syms.indexOf(sym)
     if (I === -1) {
@@ -172,11 +209,33 @@ class Engine {
     }
     return I
   }
+
+  // returns the symbol associated to an integer index
+  // in the symbol table
   getSym(w) {
     if (w < 0 || w >= this.syms.length)
       throw "BADSYMREF=" + w
     return this.syms[w]
   }
+
+    /** runtime areas:
+     *
+     * the heap contains code for clauses and their copies
+     * created during execution
+     *
+     * the trail is an undo list for variable bindings
+     * that facilitates retrying failed goals with alternative
+     * matching clauses
+     *
+     * the unification stack ustack helps handling term unification non-recursively
+     *
+     * the spines stack contains abstractions of clauses and goals and performs the
+     * functions of both a choice-point stack and goal stack
+     *
+     * imaps: contains indexes for up to MAXIND>0 arg positions (0 for pred symbol itself)
+     *
+     * vmaps: contains clause numbers for which vars occur in indexed arg positions
+     */
   makeHeap(size) {
     size = size || MINSIZE
     this.heap = Array(size).fill(0)
@@ -187,9 +246,16 @@ class Engine {
       this.heap[i] = 0
     this.top = -1
   }
+  
+  /**
+   * Pushes an element - top is incremented first than the
+   * element is assigned. This means top point to the last assigned
+   * element - which can be returned with peek().
+   */
   push(i) {
     this.heap[++this.top] = i
   }
+  
   size() {
     return this.top + 1
   }
@@ -200,6 +266,11 @@ class Engine {
     if (1 + this.top + more >= this.heap.length)
       this.expand()
   }
+
+  /**
+   * loads a program from a .nl file of
+   * "natural language" equivalents of Prolog/HiLog statements
+   */
   dload(s) {
     var Wsss = (new Toks).toSentences(s)
     var Cs = []
@@ -274,8 +345,21 @@ class Engine {
     }
     return Cs
   }
+  
+  /**
+   * returns the heap cell another cell points to
+   */
   getRef(x) { return this.heap[detag(x)] }
+  
+  /**
+   * sets a heap cell to point to another one
+   */
   setRef(w, r) { this.heap[detag(w)] = r }
+  
+  /**
+   * encodes string constants into symbols while leaving
+   * other data types untouched
+   */
   encode(t, s) {
     var w = parseInt(s)
     if (isNaN(w)) {
@@ -286,12 +370,23 @@ class Engine {
     }
     return tag(t, w)
   }
+
+  /**
+   * removes binding for variable cells
+   * above savedTop
+   */
   unwindTrail(savedTop) {
     while (savedTop < this.trail.length - 1) {
       var href = this.trail.pop()
       this.setRef(href, href)
     }
   }
+
+  /**
+   * scans reference chains starting from a variable
+   * until it points to an unbound root variable or some
+   * non-variable cell
+   */
   deref(x) {
     while (isVAR(x)) {
       var r = this.getRef(x)
@@ -314,6 +409,12 @@ class Engine {
       pp("trail[" + i + "]=" + this.showCell(t) + ":" + this.showTerm(t))
     }
   }
+
+  /**
+   * builds an array of embedded arrays from a heap cell
+   * representing a term for interaction with an external function
+   * including a displayer
+   */
   exportTerm(x) {
     x = this.deref(x)
     var t = tagOf(x)
@@ -348,6 +449,10 @@ class Engine {
     }
     return res
   }
+
+  /**
+   * raw display of a cell as tag : value
+   */
   showCell(w) {
     var t = tagOf(w)
     var val = detag(w)
@@ -395,6 +500,10 @@ class Engine {
   ppGoals(gs) {}
   ppSpines() {}
 
+  /**
+   * unification algorithm for cells X1 and X2 on ustack that also takes care
+   * to trail bindigs below a given heap address "base"
+   */
   unify(base) {
     while (this.ustack.length) {
       var x1 = this.deref(this.ustack.pop())
@@ -450,6 +559,10 @@ class Engine {
     }
     return true
   }
+
+  /**
+   * places a clause built by the Toks reader on the heap
+   */
   putClause(cs, gs, neck) {
     var base = this.size()
     var b = tag(V, base)
@@ -460,6 +573,10 @@ class Engine {
     var xs = this.getIndexables(gs[0])
     return Clause(len, gs, base, neck, xs)
   }
+
+  /**
+   * pushes slice[from,to] of array cs of cells to heap
+   */
   pushCells1(b, from, to, base) {
     this.ensureSize(to - from)
     for (var i = from; i < to; i++)
@@ -470,10 +587,20 @@ class Engine {
     for (var i = from; i < to; i++)
         this.push(relocate(b, cs[i]))
   }
+
+  /**
+   * copies and relocates head of clause at offset from heap to heap
+   */
   pushHead(b, C) {
     this.pushCells1(b, 0, C.neck, C.base)
     return relocate(b, C.hgs[0])
   }
+
+  /**
+   * copies and relocates body of clause at offset from heap to heap
+   * while also placing head as the first element of array gs that
+   * when returned contains references to the toplevel spine of the clause
+   */
   pushBody(b, head, C) {
     this.pushCells1(b, C.neck, C.len, C.base)
     var l = C.hgs.length
@@ -485,6 +612,13 @@ class Engine {
     }
     return gs
   }
+
+  /**
+   * makes, if needed, registers associated to top goal of a Spine
+   * these registers will be reused when matching with candidate clauses
+   * note that regs contains dereferenced cells - this is done once for
+   * each goal's toplevel subterms
+   */
   makeIndexArgs(G) {
     var goal = G.gs[0]
     if (G.xs.length)
@@ -525,6 +659,12 @@ class Engine {
     }
     return x
   }
+
+  /**
+   * tests if the head of a clause, not yet copied to the heap
+   * for execution could possibly match the current goal, an
+   * abstraction of which has been place in regs
+   */
   match(xs, C0) {
     for (var i = 0; i < MAXIND; i++) {
       var x = xs[i]
@@ -536,6 +676,14 @@ class Engine {
     }
     return true
   }
+
+  /**
+   * transforms a spine containing references to choice point and
+   * immutable list of goals into a new spine, by reducing the
+   * first goal in the list with a clause that successfully
+   * unifies with it - in which case places the goals of the
+   * clause at the top of the new list of goals, in reverse order
+   */
   unfold(G) {
     var ttop = this.trail.length - 1
     var htop = this.top
@@ -569,7 +717,17 @@ class Engine {
     }
     return null
   }
+
+  /**
+   * extracts a query - by convention of the form
+   * goal(Vars):-body to be executed by the engine
+   */
   getQuery() { return array_last(this.clauses, null) }
+
+  /**
+   * returns the initial spine built from the
+   * query from which execution starts
+   */
   init() {
     var base = this.size()
     var G = this.getQuery()
@@ -577,12 +735,32 @@ class Engine {
     this.spines.push(Q)
     return Q
   }
+
+  /**
+   * returns an answer as a Spine while recording in it
+   * the top of the trail to allow the caller to retrieve
+   * more answers by forcing backtracking
+   */
   answer(ttop) { return Spine2(this.spines[0].hd, ttop) }
+
+  /**
+   * removes this spines for the spine stack and
+   * resets trail and heap to where they where at its
+   * creating time - while undoing variable binding
+   * up to that point
+   */
   popSpine() {
     var G = this.spines.pop()
     this.unwindTrail(G.ttop)
     this.top = G.base - 1
   }
+
+  /**
+   * main interpreter loop: starts from a spine and works
+   * though a stream of answers, returned to the caller one
+   * at a time, until the spines stack is empty - when it
+   * returns null
+   */
   yield_() {
     while (this.spines.length) {
       var G = array_last(this.spines, null)
@@ -600,6 +778,12 @@ class Engine {
     return null
   }
   heap2s() { return '[' + this.top + ' ' + this.heap.slice(0,this.top).map((x,y) => heapCell(x)).join(',') + ']' }
+
+  /**
+   * retrieves an answers and ensure the engine can be resumed
+   * by unwinding the trail of the query Spine
+   * returns an external "human readable" representation of the answer
+   */
   ask() {
     this.query = this.yield_()
     if (null == this.query)
@@ -609,6 +793,11 @@ class Engine {
     this.unwindTrail(this.query.ttop)
     return R
   }
+
+  /**
+   * initiator and consumer of the stream of answers
+   * generated by this engine
+   */
   run(print_ans) {
     var ctr = 0
     for (;; ctr++) {
@@ -654,8 +843,20 @@ class Engine {
   }
 }
 
+/**
+ * tags an integer value while flipping it into a negative
+ * number to ensure that untagged cells are always negative and the tagged
+ * ones are always positive - a simple way to ensure we do not mix them up
+ * at runtime
+ */
 const tag=(t, w)=> -((w << 3) + t)
+/**
+ * removes tag after flipping sign
+ */
 const detag=w=> -w >> 3
+/**
+ * extracts the tag of a cell
+ */
 const tagOf=w=> -w & 7
 const tagSym=t=>
   t === V ? "V" :
@@ -666,8 +867,16 @@ const tagSym=t=>
   t === A ? "A" : "?"
 
 const heapCell = (w) => tagSym(tagOf(w))+":"+detag(w)+"["+w+"]"
+
+/**
+ * true if cell x is a variable
+ * assumes that variables are tagged with 0 or 1
+ */
 const isVAR = (x) => tagOf(x) < 2
 
+/**
+ * expands a "Xs lists .." statements to "Xs holds" statements
+ */
 function maybeExpand(Ws) {
   var W = Ws[0]
   if (W.length < 2 || "l:" !== W.substring(0, 2))
@@ -683,6 +892,10 @@ function maybeExpand(Ws) {
   }
   return Rss
 }
+
+/**
+ * expands, if needed, "lists" statements in sequence of statements
+ */
 function mapExpand(Wss) {
   var Rss = []
   for (var Ws of Wss) {

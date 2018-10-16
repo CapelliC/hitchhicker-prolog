@@ -651,9 +651,9 @@ Engine.prototype.encode = function(t, s) {
 }
 
 /**
-* removes binding for variable cells
-* above savedTop
-*/
+ * removes binding for variable cells
+ * above savedTop
+ */
 Engine.prototype.unwindTrail = function(savedTop) {
 //trace("unwindTrail", savedTop, this.trail);
     while (savedTop < this.trail.length - 1) {
@@ -962,8 +962,8 @@ Engine.prototype.pushCells2 = function(b, from, to, cs) {
 }
 
 /**
-* copies and relocates head of clause at offset from heap to heap
-*/
+ * copies and relocates head of clause at offset from heap to heap
+ */
 Engine.prototype.pushHead = function(b, C) {
     this.pushCells1(b, 0, C.neck, C.base)
     var head = C.hgs[0]
