@@ -14,6 +14,18 @@ namespace hhprolog {
     Prog::~Prog() {
     }
 
+    void Prog::run(bool print_ans) {
+        Int ctr = 0;
+        for (;; ctr++) {
+            auto A = ask();
+            if (A.type == Object::t_null)
+                break;
+            if (print_ans)
+                pp(cstr("[") + ctr + "] " + "*** ANSWER=" + showTerm(A));
+        }
+        pp(cstr("TOTAL ANSWERS=") + ctr);
+    }
+
     void Prog::ppCode() {
         pp("\nSYMS:");
         for (size_t i = 0; i < syms.size(); i++) {

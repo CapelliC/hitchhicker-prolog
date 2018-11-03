@@ -228,6 +228,32 @@ vector<Clause> Engine::dload(cstr s) {
     return Cs;
 }
 
+Object Engine::ask() {
+    query = yield_();
+    if (nullptr == query)
+        return Object();
+    auto res = answer(query->ttop)->hd;
+    auto R = exportTerm(res);
+    unwindTrail(query->ttop);
+    return R;
+}
+Spine* Engine::yield_() {
+    while (spines.size()) {
+        auto &G = spines.back();
+        auto C = unfold(G);
+        if (nullptr == C) {
+            popSpine(); // no matches
+            continue;
+        }
+        if (hasGoals(*C)) {
+            spines.push_back(*C);
+            continue;
+        }
+        return C; // answer
+    }
+    return nullptr;
+}
+
 Object Engine::exportTerm(Int x) {
     x = deref(x);
     Int t = tagOf(x);
@@ -293,6 +319,47 @@ IntS Engine::toNums(vector<Clause> clauses)
     IntS r(Int(clauses.size()));
     iota(r.begin(), r.end(), 0);
     return r;
+}
+
+void Engine::makeIndexArgs(Spine& G) {
+    Int goal = G.gs[0];
+    if (G.xs.size())
+        return;
+    Int p = 1 + detag(goal);
+    Int n = min(MAXIND, detag(getRef(goal)));
+
+    IntS xs(MAXIND);
+    for (Int i = 0; i < n; i++) {
+        Int cell = deref(heap[size_t(p + i)]);
+        xs[size_t(i)] = cell2index(cell);
+    }
+    G.xs = xs;
+    //if (imaps) throw "IMap TBD";
+}
+
+IntS Engine::getIndexables(Int ref) {
+    Int p = 1 + detag(ref);
+    Int n = detag(getRef(ref));
+    IntS xs = IntS(MAXIND);
+    for (Int i = 0; i < MAXIND && i < n; i++) {
+        Int cell = deref(heap[size_t(p + i)]);
+        xs[size_t(i)] = cell2index(cell);
+    }
+    return xs;
+}
+Int Engine::cell2index(Int cell) {
+    Int x = 0;
+    Int t = tagOf(cell);
+    switch (t) {
+    case R:
+        x = getRef(cell);
+        break;
+    case C:
+    case N:
+        x = cell;
+        break;
+    }
+    return x;
 }
 
 }

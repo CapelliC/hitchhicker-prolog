@@ -19,7 +19,8 @@ using namespace std;
 int main(int argc, char *argv[])
 {
     try {
-        string path = "/home/carlo/test/java/prologEngine/progs/",
+        string
+            path = "/home/carlo/test/java/prologEngine/progs/",
             fname = argc == 1 ? "perms.pl" : argv[1],
             src = file2string(path + fname + ".nl"); // assume SWI-Prolog already takes care of .pl => .pl.nl
         auto p = new hhprolog::Prog(src);

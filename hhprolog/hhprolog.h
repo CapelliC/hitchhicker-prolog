@@ -42,8 +42,6 @@ struct IntS : vector<Int> {
 typedef IntS IntList;
 typedef IntS IntStack;
 
-template <class T> struct ObStack : vector<T>{};
-
 inline cstr operator+(cstr s, Int i) { return s + to_string(i); }
 inline cstr operator+(cstr s, size_t i) { return s + to_string(i); }
 
@@ -87,7 +85,6 @@ struct Object {
 };
 
 namespace Toks {
-
     typedef vector<string> Ts;
     typedef vector<Ts> Tss;
     typedef vector<Tss> Tsss;
@@ -95,7 +92,6 @@ namespace Toks {
     Tsss toSentences(string s);
     Tss maybeExpand(Ts Ws);
     Tss mapExpand(Tss Wss);
-
 };
 
 struct Clause {
@@ -154,18 +150,6 @@ public:
     Engine(string asm_nl_source);
     virtual ~Engine();
 
-    void run(bool print_ans) {
-        Int ctr = 0;
-        for (;; ctr++) {
-            auto A = ask();
-            if (A.type == Object::t_null)
-                break;
-            if (print_ans)
-                pp(cstr("[") + ctr + "] " + "*** ANSWER=" + showTerm(A));
-        }
-        pp(cstr("TOTAL ANSWERS=") + ctr);
-    }
-
 protected:
 
     vector<string> syms;
@@ -175,7 +159,7 @@ protected:
     Int top;
     IntStack trail;
     IntStack ustack;
-    ObStack<Spine> spines;
+    vector<Spine> spines;
 
     Spine *query;
 
@@ -336,47 +320,12 @@ protected:
         }
         return gs;
     }
-    void makeIndexArgs(Spine& G) {
-        Int goal = G.gs[0];
-        if (G.xs.size())
-            return;
-        Int p = 1 + detag(goal);
-        Int n = min(MAXIND, detag(getRef(goal)));
 
-        IntS xs(MAXIND);
-        for (Int i = 0; i < n; i++) {
-            Int cell = deref(heap[size_t(p + i)]);
-            xs[size_t(i)] = cell2index(cell);
-        }
-        G.xs = xs;
-        //if (imaps) throw "IMap TBD";
-    }
+    void makeIndexArgs(Spine& G);
+    IntS getIndexables(Int ref);
+    Int cell2index(Int cell);
 
-    IntS getIndexables(Int ref) {
-        Int p = 1 + detag(ref);
-        Int n = detag(getRef(ref));
-        IntS xs = IntS(MAXIND);
-        for (Int i = 0; i < MAXIND && i < n; i++) {
-            Int cell = deref(heap[size_t(p + i)]);
-            xs[size_t(i)] = cell2index(cell);
-        }
-        return xs;
-    }
-    Int cell2index(Int cell) {
-        Int x = 0;
-        Int t = tagOf(cell);
-        switch (t) {
-        case R:
-            x = getRef(cell);
-            break;
-        case C:
-        case N:
-            x = cell;
-            break;
-        }
-        return x;
-    }
-    bool match(const IntS &xs, const Clause &C0) {
+    static inline bool match(const IntS &xs, const Clause &C0) {
         for (size_t i = 0; i < MAXIND; i++) {
             Int x = xs[i];
             Int y = C0.xs[i];
@@ -404,34 +353,11 @@ protected:
         unwindTrail(G.ttop);
         top = G.base - 1;
     }
-    Spine* yield_() {
-        while (spines.size()) {
-            auto G = spines.back();
-            auto C = unfold(G);
-            if (nullptr == C) {
-                popSpine(); // no matches
-                continue;
-            }
-            if (hasGoals(*C)) {
-                spines.push_back(*C);
-                continue;
-            }
-            return C; // answer
-        }
-        return nullptr;
-    }
+    Spine* yield_();
     string heap2s() {
         return ""; //string("[") + top + ' ' + heap.slice(0,top).vmap([](Int x) {return heapCell(x); }).join(',') + ']';
     }
-    Object ask() {
-        query = yield_();
-        if (nullptr == query)
-            return Object();
-        auto res = answer(query->ttop)->hd;
-        auto R = exportTerm(res);
-        unwindTrail(query->ttop);
-        return R;
-    }
+    Object ask();
 
     Toks::Tss vcreate(size_t l) {
         return Toks::Tss(l);
@@ -472,7 +398,11 @@ public:
     Prog(string s);
     virtual ~Prog();
 
+    void run(bool print_ans);
     void ppCode();
+
+protected:
+
     string showClause(const Clause &s);
     virtual string showTerm(Object O);
 
