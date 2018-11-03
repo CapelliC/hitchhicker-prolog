@@ -156,12 +156,12 @@ protected:
     vector<Clause> clauses;
     IntS cls;
     IntS heap;
-    Int top;
+    Int top = -1;
     IntStack trail;
     IntStack ustack;
     vector<Spine> spines;
 
-    Spine *query;
+    Spine *query = nullptr;
 
     t_imaps imaps;
     t_vmap vmaps;
@@ -194,12 +194,8 @@ protected:
         heap.resize(size_t(size));
         clear();
     }
-    void clear() {
-        for (Int i = 0; i <= top; i++)
-            heap[size_t(i)] = 0;
-        top = -1;
-    }
-    void push(Int i) {
+    void clear();
+    inline void push(Int i) {
         heap[size_t(++top)] = i;
     }
     inline Int size() const {
@@ -337,26 +333,20 @@ protected:
         return true;
     }
     Spine* unfold(Spine& G);
-    Clause getQuery() {
+    inline Clause getQuery() {
         return clauses.back();
     }
     Spine* init() {
         Int base = size();
         Clause G = getQuery();
-        Spine Q(G.hgs, base, IntS(), -1 /*trail.back()*/, 0, cls);
+        Spine Q(G.hgs, base, IntS(), -1, 0, cls);
         spines.push_back(Q);
         return &spines.back();
     }
-    Spine* answer(Int ttop) { return new Spine(spines[0].hd, ttop); }
-    void popSpine() {
-        auto G = spines.back(); spines.pop_back();
-        unwindTrail(G.ttop);
-        top = G.base - 1;
-    }
+    Spine* answer(Int ttop);
+    void popSpine();
+
     Spine* yield_();
-    string heap2s() {
-        return ""; //string("[") + top + ' ' + heap.slice(0,top).vmap([](Int x) {return heapCell(x); }).join(',') + ']';
-    }
     Object ask();
 
     Toks::Tss vcreate(size_t l) {

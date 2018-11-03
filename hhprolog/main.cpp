@@ -11,6 +11,8 @@ Copyright (c) 2018 Carlo Capelli
 */
 
 #include <iostream>
+#include <chrono>
+
 #include "hhprolog.h"
 #include "file2string.h"
 
@@ -19,13 +21,30 @@ using namespace std;
 int main(int argc, char *argv[])
 {
     try {
-        string
-            path = "/home/carlo/test/java/prologEngine/progs/",
-            fname = argc == 1 ? "perms.pl" : argv[1],
-            src = file2string(path + fname + ".nl"); // assume SWI-Prolog already takes care of .pl => .pl.nl
-        auto p = new hhprolog::Prog(src);
+        string path = "/home/carlo/test/java/prologEngine/progs/";
+        string fname;
+        bool print_ans;
+
+        if (argc == 1) {
+            fname = "perms.pl";
+            print_ans = false;
+        }
+        else {
+            fname = argv[1];
+            print_ans = argc == 3 ? string(argv[2]) == "true" : false;
+        }
+
+        // assume SWI-Prolog already takes care of .pl => .pl.nl
+        auto p = new hhprolog::Prog(file2string(path + fname + ".nl"));
         p->ppCode();
-        p->run(true);
+
+        { using namespace chrono;
+            auto b = steady_clock::now();
+            p->run(print_ans);
+            auto e = steady_clock::now();
+            cout << "done in " << duration_cast<milliseconds>(e - b).count() << endl;
+        }
+
         delete p;
     }
     catch(exception &e) {

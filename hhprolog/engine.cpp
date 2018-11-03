@@ -26,7 +26,6 @@ Engine::Engine(string asm_nl_source) {
     //imaps = index(clauses, vmaps);
 }
 Engine::~Engine() {
-
 }
 
 Spine* Engine::unfold(Spine& G) {
@@ -55,8 +54,10 @@ Spine* Engine::unfold(Spine& G) {
         IntS gs = pushBody(b, head, C0);
         IntList newgs = gs.concat(G.gs.slice(1)).slice(1);
         G.k = k + 1;
-        if (newgs.size())
-            return new Spine(gs, base, G.gs.slice(1), ttop, 0, cls);
+        if (newgs.size()) {
+            spines.push_back(Spine(gs, base, G.gs.slice(1), ttop, 0, cls));
+            return &spines.back();
+        }
         else
             return answer(ttop);
     }
@@ -121,6 +122,7 @@ bool Engine::unify_args(Int w1, Int w2) {
 void Engine::pp(string s) {
     cout << s << endl;
 }
+
 cstr Engine::tagSym(Int t) {
     if (t == V) return "V";
     if (t == U) return "U";
@@ -130,8 +132,15 @@ cstr Engine::tagSym(Int t) {
     if (t == A) return "A";
     return "?";
 }
+
+void Engine::clear() {
+    /*for (Int i = 0; i < top; i++)
+        heap[size_t(i)] = 0;*/
+    top = -1;
+}
+
 cstr Engine::heapCell(Int w) {
-    return tagSym(tagOf(w))+":"+detag(w)+"["+w+"]";
+    return tagSym(tagOf(w)) + ":" + detag(w) + "[" + w + "]";
 }
 
 Int Engine::addSym(cstr sym) {
@@ -228,13 +237,22 @@ vector<Clause> Engine::dload(cstr s) {
     return Cs;
 }
 
+Spine* Engine::answer(Int ttop) {
+    return new Spine(spines[0].hd, ttop);
+}
 Object Engine::ask() {
     query = yield_();
     if (nullptr == query)
         return Object();
-    auto res = answer(query->ttop)->hd;
+    auto ans = answer(query->ttop);
+    auto res = ans->hd;
     auto R = exportTerm(res);
     unwindTrail(query->ttop);
+    delete ans;
+
+    delete query;
+    query = nullptr;
+
     return R;
 }
 Spine* Engine::yield_() {
@@ -246,12 +264,19 @@ Spine* Engine::yield_() {
             continue;
         }
         if (hasGoals(*C)) {
-            spines.push_back(*C);
+            //spines.push_back(*C);
             continue;
         }
         return C; // answer
     }
     return nullptr;
+}
+
+void Engine::popSpine() {
+    auto G = spines.back();
+    spines.pop_back();
+    unwindTrail(G.ttop);
+    top = G.base - 1;
 }
 
 Object Engine::exportTerm(Int x) {
