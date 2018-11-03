@@ -1,195 +1,132 @@
+/*
+Author: Carlo Capelli
+Version: 1.0.0
+License: MIT
+Copyright (c) 2017,2018 Carlo Capelli
+*/
+
 #ifndef HHPROLOG_H
 #define HHPROLOG_H
 
 #include <string>
 #include <vector>
-#include <array>
-// or #include <set>
-#include <regex>
-#include <iostream>
+#include <stdexcept>
+#include <unordered_map>
 
 namespace hhprolog {
 
 using namespace std;
+
 typedef const string cstr;
-typedef vector<int> IntList;
-typedef vector<int> intS;
-typedef vector<int> IntStack;
+typedef long Int;
+
+struct IntS : vector<Int> {
+
+    IntS() : vector<Int>(){}
+    IntS(Int s) : vector<Int>(size_t(s)){}
+
+    IntS slice(size_t s) const {
+        IntS r;
+        while (s < size()) {
+            r.push_back(at(s++));
+        }
+        return r;
+    }
+    IntS concat(const IntS &s) const {
+        IntS r(*this);
+        for (auto v: s)
+            r.push_back(v);
+        return r;
+    }
+};
+typedef IntS IntList;
+typedef IntS IntStack;
+
 template <class T> struct ObStack : vector<T>{};
 
-typedef vector<cstr> Ts;
-typedef vector<vector<cstr>> Tss;
-typedef vector<vector<vector<cstr>>> Tsss;
-inline cstr operator+(cstr s, int i) { return s + to_string(i); }
+inline cstr operator+(cstr s, Int i) { return s + to_string(i); }
+inline cstr operator+(cstr s, size_t i) { return s + to_string(i); }
 
-struct Term {
-    enum { t_int, t_atom, t_var, t_struct } type;
+typedef unordered_map<Int, IntS> t_imaps;
+typedef unordered_map<Int, Int> t_IntMap;
+typedef vector<t_IntMap> t_vmap;
 
-    Term(int i) : type(t_int), i(i) {}
-    Term(cstr s) : type(t_atom), s(s) {}
-    Term(cstr s, int i) : type(t_var), i(i), s(s) {}
-    Term(cstr f, vector<Term> args) : type(t_struct), s(f), args(args) {}
+struct Object {
+    enum { t_null, t_int, t_string, t_vector } type;
 
-    int i;
-    cstr s;
-    vector<Term> args;
+    Object() : type(t_null) {}
+    explicit Object(Int i) : type(t_int), i(i) {}
+    Object(cstr s) : type(t_string), s(s) {}
+    Object(vector<Object> v) : type(t_vector), v(v) {}
+
+    int _; // remove padding warning
+
+    Int i;
+    string s;
+    vector<Object> v;
 
     string toString() const {
         switch(type) {
+        case t_null:
+            return "$null";
         case t_int:
             return to_string(i);
-        case t_atom:
+        case t_string:
             return s;
-        case t_var:
-            return s;
-        case t_struct: {
+        case t_vector: {
             string j;
-            return s + "(" + transform(args.begin(), args.end(), j) + ")";
-        }
-    }
-}
-
-void pp(string s) {
-    cout << s << endl;
-}
-
-cstr
-    SPACE = "\\s+",
-    ATOM  = "[a-z]\\w*",
-    VAR   = "[A-Z_]\\w*",
-    NUM   = "-?\\d+",
-    DOT   = "\\.";
-
-// atom keywords
-cstr
-    IF    = "if",
-    AND   = "and",
-    HOLDS = "holds",
-    NIL   = "nil",
-    LISTS = "lists",
-    IS    = "is";  // ?
-
-class Toks {
-
-    struct tok {
-        cstr t; cstr s; int n;
-    };
-    vector<tok> makeToks(cstr s) {
-        auto e = regex("(${SPACE})|(${ATOM})|(${VAR})|(${NUM})|(${DOT})");
-        auto token = [](smatch r) {
-            if (!r.empty()) {
-                auto tkAtom = [](cstr s) {
-                    array<cstr, 6> kws = {IF, AND, HOLDS, NIL, LISTS, IS};
-                    auto p = find(kws.cbegin(), kws.cend(), s);
-                    return tok{p == kws.cend() ? ATOM : s, s, 0};
-                };
-                auto tkVar = [](cstr s) {
-                    return tok{VAR, s, 0};
-                };
-                auto tkNum = [](cstr s) {
-                    return tok{NUM, s, stoi(s)};
-                };
-
-                if (r[1].str().size()) return tok{SPACE, r[0], 0};
-                if (r[2].str().size()) return tkAtom(r.str());
-                if (r[3].str().size()) return tkVar(r[0]);
-                if (r[4].str().size()) return tkNum(r[0]);
-                if (r[5].str().size()) return tok{DOT, r[0], 0};
+            for (auto a: v) {
+                if (!j.empty())
+                    j += ",";
+                j += a.toString();
             }
-            throw "no match";
-        };
-        vector<tok> tokens;
-        sregex_iterator f(s.cbegin(), s.cend(), e), l = sregex_iterator();
-        while (f != l) {
-            auto r = token(*f++);
-            if (r.t != SPACE)
-                tokens.push_back(r);
-        }
-        return tokens;
+            return "(" + j + ")";
+        }}
+        throw logic_error("invalid term");
     }
+};
 
-public:
-  Tsss toSentences(cstr s) {
-    Tsss Wsss;
-    Tss Wss;
-    Ts Ws;
-    for (auto t : makeToks(s)) {
-      if (t.t == DOT) {
-        Wss.push_back(Ws);
-        Wsss.push_back(Wss);
-        Wss.clear();
-        Ws.clear();
-        continue;
-      }
-      if (t.t == IF) {
-        Wss.push_back(Ws);
-        Ws.clear();
-        continue;
-      }
-      if (t.t == AND) {
-        Wss.push_back(Ws);
-        Ws.clear();
-        continue;
-      }
-      if (t.t == HOLDS) {
-        Ws[0] = "h:" + Ws[0].substr(2);
-        continue;
-      }
-      if (t.t == LISTS) {
-        Ws[0] = "l:" + Ws[0].substr(2);
-        continue;
-      }
-      if (t.t == IS) {
-        Ws[0] = "f:" + Ws[0].substr(2);
-        continue;
-      }
-      if (t.t == VAR) {
-        Ws.push_back("v:" + t.s);
-        continue;
-      }
-      if (t.t == NUM) {
-        Ws.push_back((t.n < (1 << 28) ? "n:" : "c:") + t.s);
-        continue;
-      }
-      if (t.t == ATOM || t.t == NIL) {
-        Ws.push_back("c:" + t.s);
-        continue;
-      }
-       throw "unknown token:"+t.t;
-    }
-    return Wsss;
-  }
+namespace Toks {
+
+    typedef vector<string> Ts;
+    typedef vector<Ts> Tss;
+    typedef vector<Tss> Tsss;
+
+    Tsss toSentences(string s);
+    Tss maybeExpand(Ts Ws);
+    Tss mapExpand(Tss Wss);
+
 };
 
 struct Clause {
-    int len;
-    intS hgs;
-    int base;
-    int neck;
-    intS xs;
+    Int len;
+    IntS hgs;
+    Int base;
+    Int neck;
+    IntS xs;
 };
 struct Spine {
-    int hd; // head of the clause to which this corresponds
-    int base; // top of the heap when this was created
+    Int hd;     // head of the clause to which this corresponds
+    Int base;   // top of the heap when this was created
 
     IntList gs; // goals - with the top one ready to unfold
-    int ttop; // top of the trail when this was created
+    Int ttop;   // top of the trail when this was created
 
-    int k;
-    intS xs; // index elements
-    intS cs; // array of  clauses known to be unifiable with top goal in gs
+    Int k;
+    IntS xs;    // index elements
+    IntS cs;    // array of  clauses known to be unifiable with top goal in gs
 
-    Spine(intS gs0, int base, IntList gs, int ttop, int k, intS cs) :
+    Spine(IntS gs0, Int base, IntList gs, Int ttop, Int k, IntS cs) :
         hd(gs0[0]),
         base(base),
-        gs(gs0), //   : gs0.concat(gs).slice(1),
+        gs(gs0.concat(gs).slice(1)),
         ttop(ttop),
         k(k),
         cs(cs)
     {
     }
 
-    Spine(int hd, int ttop) :
+    Spine(Int hd, Int ttop) :
         hd(hd),
         base(0),
         ttop(ttop),
@@ -198,196 +135,115 @@ struct Spine {
     }
 };
 
-const int MINSIZE = 1 << 15;
-const int MAXIND = 3;
-const int START_INDEX = 20;
+const Int MINSIZE = 1 << 15;
+const Int MAXIND = 3;
+const Int START_INDEX = 20;
 
-const int V = 0;
-const int U = 1;
-const int R = 2;
-const int C = 3;
-const int N = 4;
-const int A = 5;
-const int BAD = 7;
-
-inline int tag(int t, int w) { return -((w << 3) + t); }
-inline int detag(int w) { return -w >> 3; }
-inline int tagOf(int w) { return -w & 7; }
-inline bool isVAR(int x) { return tagOf(x) < 2; }
-cstr tagSym(int t) {
-  if (t == V) return "V";
-  if (t == U) return "U";
-  if (t == R) return "R";
-  if (t == C) return "C";
-  if (t == N) return "N";
-  if (t == A) return "A";
-  return "?";
-}
-cstr heapCell(int w) {
-    return tagSym(tagOf(w))+":"+detag(w)+"["+w+"]";
-}
-intS toNums(vector<Clause> clauses) {
-    intS r(clauses.size());
-    iota(r.begin(), r.end(), 0);
-    return r;
-}
+const Int V = 0;
+const Int U = 1;
+const Int R = 2;
+const Int C = 3;
+const Int N = 4;
+const Int A = 5;
+const Int BAD = 7;
 
 class Engine {
 
+public:
+
+    Engine(string asm_nl_source);
+    virtual ~Engine();
+
+    void run(bool print_ans) {
+        Int ctr = 0;
+        for (;; ctr++) {
+            auto A = ask();
+            if (A.type == Object::t_null)
+                break;
+            if (print_ans)
+                pp(cstr("[") + ctr + "] " + "*** ANSWER=" + showTerm(A));
+        }
+        pp(cstr("TOTAL ANSWERS=") + ctr);
+    }
+
 protected:
-    vector<cstr> syms;
+
+    vector<string> syms;
     vector<Clause> clauses;
-    intS cls;
-    intS heap;
-    int top;
+    IntS cls;
+    IntS heap;
+    Int top;
     IntStack trail;
     IntStack ustack;
     ObStack<Spine> spines;
 
     Spine *query;
 
-    //IMap<Integer>[] imaps;
-    //IntMap[] vmaps;
+    t_imaps imaps;
+    t_vmap vmaps;
 
-public:
-    Engine(cstr asm_nl_source) {
-        makeHeap(50);
-        clauses = dload(asm_nl_source);
-        cls = toNums(clauses);
-        query = init();
-        //vmaps = vcreate(MAXIND);
-        //imaps = index(clauses, vmaps);
+    static inline Int tag(Int t, Int w) { return -((w << 3) + t); }
+    static inline Int detag(Int w) { return -w >> 3; }
+    static inline Int tagOf(Int w) { return -w & 7; }
+    static inline bool isVAR(Int x) { return tagOf(x) < 2; }
+
+    static void pp(string s);
+
+    static cstr tagSym(Int t);
+    static cstr heapCell(Int w);
+
+    static IntS toNums(vector<Clause> clauses);
+
+    static IntS getSpine(IntS cs);
+    static inline Int relocate(Int b, Int cell) { return tagOf(cell) < 3 ? cell + b : cell; }
+
+    static bool hasClauses(const Spine &S) { return S.k < Int(S.cs.size()); }
+    static bool hasGoals(const Spine &S) { return S.gs.size() > 0; }
+
+    Int addSym(cstr sym);
+    cstr getSym(Int w) {
+        if (w < 0 || w >= Int(syms.size()))
+            throw logic_error(cstr("BADSYMREF=") + w);
+        return syms[size_t(w)];
     }
-    int addSym(cstr sym) {
-        auto I = syms.indexOf(sym);
-        if (I == -1) {
-            I = syms.size();
-            syms.push(sym);
-        }
-        return I;
-    }
-    cstr getSym(int w) {
-        if (w < 0 || w >= syms.size())
-            throw cstr("BADSYMREF=") + w;
-        return syms[w];
-    }
-    void makeHeap(int size = MINSIZE) {
-        heap.resize(size);
+    void makeHeap(Int size = MINSIZE) {
+        heap.resize(size_t(size));
         clear();
     }
     void clear() {
-        for (int i = 0; i <= top; i++)
-            heap[i] = 0;
+        for (Int i = 0; i <= top; i++)
+            heap[size_t(i)] = 0;
         top = -1;
     }
-    void push(int i) {
-        heap[++top] = i;
+    void push(Int i) {
+        heap[size_t(++top)] = i;
     }
-    int size() {
+    inline Int size() const {
         return top + 1;
     }
     void expand() {
         heap.resize(heap.size() * 2);
     }
-    void ensureSize(int more) {
-        if (1 + top + more >= heap.size())
+    void ensureSize(Int more) {
+        if (1 + top + more >= Int(heap.size()))
             expand();
     }
-    vector<Clause> dload(cstr s) {
-        auto Wsss = Toks().toSentences(s);
-        vector<Clause> Cs;
-        for (auto Wss: Wsss) {
-            vector<vector<int>> refs;
-            vector<Clause> cs;
-            intS gs;
-            auto Rss = mapExpand(Wss);
-            int k = 0;
-            for (auto ws: Rss) {
-                int l = ws.size();
-                gs.push_back(tag(R, k++));
-                cs.push_back(tag(A, l));
-                for (auto w: ws) {
-                    if (1 == w.length)
-                        w = "c:" + w
-                                auto L = w.substr(2);
-                    switch (w[0]) {
-                    case 'c':
-                        cs.push_back(encode(C, L));
-                        k++;
-                        break;
-                    case 'n':
-                        cs.push_back(encode(N, L))
-                                k++;
-                        break;
-                    case 'v':
-                        if (refs[L] === undefined)
-                            refs[L] = []
-                                    refs[L].push_back(k);
-                        cs.push_back(tag(BAD, k));
-                        k++;
-                        break;
-                    case 'h':
-                        if (refs[L] === undefined)
-                            refs[L] = []
-                                    refs[L].push(k - 1)
-                                    cs[k - 1] = tag(A, l - 1)
-                                    gs.pop()
-                                    break
-                            default:
-                                    throw "FORGOTTEN=" + w
-                    }
-                }
-            }
+    vector<Clause> dload(cstr s);
 
-            for (auto kIs: refs) {
-                auto Is = refs[kIs];
-                int leader = -1;
-                for (auto j: Is)
-                    if (A == tagOf(cs[j])) {
-                        leader = j;
-                        break;
-                    }
-                if (-1 == leader) {
-                    leader = Is[0];
-                    for (auto i: Is)
-                        if (i == leader)
-                            cs[i] = tag(V, i);
-                        else
-                            cs[i] = tag(U, leader);
-                } else
-                    for (auto i: Is) {
-                        if (i == leader)
-                            continue;
-                        cs[i] = tag(R, leader);
-                    }
-            }
-            auto neck = 1 == gs.size() ? cs.size() : detag(gs[1]);
-            auto tgs = gs;
-            Cs.push_back(putClause(cs, tgs, neck));
-        }
-        return Cs;
-    }
-    int getRef(int x) { return heap[detag(x)]; }
-    void setRef(int w, int r) { heap[detag(w)] = r; }
-    int encode(int t, cstr s) {
-        size_t p = 0;
-        int w = stoi(s, &p);
-        if (w < s.size()) {
-            if (C == t)
-                w = addSym(s);
-            else
-                throw cstr("bad in encode=") + t + ":" + s;
-        }
+    inline Int getRef(Int x) { return heap[size_t(detag(x))]; }
+    inline void setRef(Int w, Int r) { heap[size_t(detag(w))] = r; }
+    inline Int encode(Int t, cstr s) {
+        Int w = C == t ? addSym(s) : stoi(s);
         return tag(t, w);
     }
-    void unwindTrail(int savedTop) {
-        while (savedTop < trail.size() - 1) {
-            int href = trail[trail.size() - 1];
+    inline void unwindTrail(Int savedTop) {
+        while (savedTop < Int(trail.size()) - 1) {
+            Int href = trail[trail.size() - 1];
             trail.pop_back();
             setRef(href, href);
         }
     }
-    int deref(int x) {
+    inline Int deref(Int x) {
         while (isVAR(x)) {
             auto r = getRef(x);
             if (r == x)
@@ -396,519 +252,253 @@ public:
         }
         return x;
     }
-    cstr showTerm(Term x) {
-        return x.toString();
+
+    /**
+     * raw display of a term - to be overridden
+     */
+    virtual string showTerm(Int x) {
+      return showTerm(exportTerm(x));
     }
+
+    /**
+     * raw display of a externalized term
+     */
+    virtual string showTerm(Object O) {
+      /*
+       if (O.type == Object::t_vector)
+        return Arrays.deepToString((Object[]) O);
+      */
+      return O.toString();
+    }
+
     void ppTrail() {
-        for (int i = 0; i <= trail[trail.size()-1]; i++) {
-            int t = trail[i];
+        for (Int i = 0; i <= trail[trail.size()-1]; i++) {
+            Int t = trail[size_t(i)];
             pp(cstr("trail[") + i + "]=" + showCell(t) + ":" + showTerm(t));
         }
     }
-    Term exportTerm(int x) {
-    x = deref(x);
-    int t = tagOf(x);
-    int w = detag(x);
-    switch (t) {
-    case C:
-      return getSym(w);
-    case N:
-        return w;
-    case V:
-    //case U:
-      res = "V" + w;
-        break;
-    case R: {
-      int a = heap[w];
-      if (A != tagOf(a))
-        throw cstr("*** should be A, found=") + showCell(a);
-      int n = detag(a);
-      intS arr(n);
-      int k = w + 1;
-      for (int i = 0; i < n; i++) {
-        int j = k + i;
-        arr[i] = exportTerm(heap[j]);
-      }
-      res = arr;
-    } break;
-    default:
-      throw cstr("*BAD TERM*") + showCell(x);
+    Object exportTerm(Int x);
+    string showCell(Int w);
+    string showCells2(Int base, Int len) {
+        string buf;
+        for (Int k = 0; k < len; k++) {
+            Int instr = heap[size_t(base + k)];
+            buf += cstr("[") + (base + k) + "]" + showCell(instr) + " ";
+        }
+        return buf;
     }
-    return res;
-  }
-  cstr showCell(int w) {
-    var t = tagOf(w)
-    var val = detag(w)
-    var s = null
-    switch (t) {
-    case V:
-      s = "v:" + val
-      break
-    case U:
-      s = "u:" + val
-      break
-    case N:
-      s = "n:" + val
-      break
-    case C:
-      s = "c:" + this.getSym(val)
-      break
-    case R:
-      s = "r:" + val
-      break
-    case A:
-      s = "a:" + val
-      break
-    default:
-      s = "*BAD*=" + w
+    string showCells1(IntS cs) {
+        string buf;
+        for (size_t k = 0; k < cs.size(); k++)
+            buf += cstr("[") + k + "]" + showCell(cs[k]) + " ";
+        return buf;
     }
-    return s
-  }
-  showCells2(base, len) {
-    var buf = ''
-    for (var k = 0; k < len; k++) {
-      var instr = this.heap[base + k]
-      buf += "[" + (base + k) + "]" + this.showCell(instr) + " "
-    }
-    return buf
-  }
-  showCells1(cs) {
-    var buf = ''
-    for (var k = 0; k < cs.length; k++)
-      buf += "[" + k + "]" + this.showCell(cs[k]) + " "
-    return buf
-  }
 
-  ppc(C) {}
-  ppGoals(gs) {}
-  ppSpines() {}
+    void ppc(const Clause &) {}
+    void ppGoals(const IntS &) {}
+    void ppSpines() {}
 
-  unify(base) {
-    while (this.ustack.length) {
-      var x1 = this.deref(this.ustack.pop())
-      var x2 = this.deref(this.ustack.pop())
-      if (x1 != x2) {
-        var t1 = tagOf(x1)
-        var t2 = tagOf(x2)
-        var w1 = detag(x1)
-        var w2 = detag(x2)
-        if (isVAR(x1)) {
-          if (isVAR(x2) && w2 > w1) {
-            this.heap[w2] = x1
-            if (w2 <= base)
-              this.trail.push(x2)
-          } else {
-            this.heap[w1] = x2
-            if (w1 <= base)
-              this.trail.push(x1)
-          }
-        } else if (isVAR(x2)) {
-          this.heap[w2] = x1
-          if (w2 <= base)
-            this.trail.push(x2)
-        } else if (R == t1 && R == t2) {
-          if (!this.unify_args(w1, w2))
-            return false
-        } else
-          return false
-      }
-    }
-    return true
-  }
+    bool unify(Int base);
+    bool unify_args(Int w1, Int w2);
 
-  unify_args(w1, w2) {
-    var v1 = this.heap[w1]
-    var v2 = this.heap[w2]
-    // both should be A
-    var n1 = detag(v1)
-    var n2 = detag(v2)
-    if (n1 != n2)
-      return false
-    var b1 = 1 + w1
-    var b2 = 1 + w2
-    for (var i = n1 - 1; i >= 0; i--) {
-      var i1 = b1 + i
-      var i2 = b2 + i
-      var u1 = this.heap[i1]
-      var u2 = this.heap[i2]
-      if (u1 == u2)
-        continue
-      this.ustack.push(u2)
-      this.ustack.push(u1)
+    Clause putClause(IntS cs, IntS gs, Int neck) {
+        Int base = size();
+        Int b = tag(V, base);
+        Int len = Int(cs.size());
+        pushCells2(b, 0, len, cs);
+        for (size_t i = 0; i < gs.size(); i++)
+            gs[i] = relocate(b, gs[i]);
+        auto xs = getIndexables(gs[0]);
+        return Clause{len, gs, base, neck, xs};
     }
-    return true
-  }
-  putClause(cs, gs, neck) {
-    var base = this.size()
-    var b = tag(V, base)
-    var len = cs.length
-    this.pushCells2(b, 0, len, cs)
-    for (var i = 0; i < gs.length; i++)
-      gs[i] = relocate(b, gs[i])
-    var xs = this.getIndexables(gs[0])
-    return Clause(len, gs, base, neck, xs)
-  }
-  void pushCells(int b, int from, int to, int base) {
-    ensureSize(to - from);
-    for (int i = from; i < to; i++)
-        push(relocate(b, this.heap[base + i]));
-  }
-  void pushCells2(int b, int from, int to, intS &cs) {
-    ensureSize(to - from);
-    for (int i = from; i < to; i++)
-        push(relocate(b, cs[i]));
-  }
-  int pushHead(int b, const Clause& C) {
-    pushCells1(b, 0, C.neck, C.base);
-    return relocate(b, C.hgs[0]);
-  }
-  intS pushBody(int b, int head, Clause& C) {
-    pushCells1(b, C.neck, C.len, C.base);
-    int l = C.hgs.size();
-    intS gs(l);
-    gs[0] = head;
-    for (int k = 1; k < l; k++) {
-      int cell = C.hgs[k];
-      gs[k] = relocate(b, cell);
+    void pushCells1(Int b, Int from, Int to, Int base) {
+        ensureSize(to - from);
+        for (Int i = from; i < to; i++)
+            push(relocate(b, heap[size_t(base + i)]));
     }
-    return gs;
-  }
-  void makeIndexArgs(Spine& G) {
-    int goal = G.gs[0];
-    if (G.xs.size())
-      return;
-    int p = 1 + detag(goal);
-    int n = Math.min(MAXIND, detag(getRef(goal)));
+    void pushCells2(Int b, Int from, Int to, IntS &cs) {
+        ensureSize(to - from);
+        for (Int i = from; i < to; i++)
+            push(relocate(b, cs[size_t(i)]));
+    }
+    Int pushHead(Int b, const Clause& C) {
+        pushCells1(b, 0, C.neck, C.base);
+        return relocate(b, C.hgs[0]);
+    }
+    IntS pushBody(Int b, Int head, Clause& C) {
+        pushCells1(b, C.neck, C.len, C.base);
+        auto l = C.hgs.size();
+        IntS gs(static_cast<Int>(l));
+        gs[0] = head;
+        for (size_t k = 1; k < l; k++) {
+            auto cell = C.hgs[k];
+            gs[k] = relocate(b, cell);
+        }
+        return gs;
+    }
+    void makeIndexArgs(Spine& G) {
+        Int goal = G.gs[0];
+        if (G.xs.size())
+            return;
+        Int p = 1 + detag(goal);
+        Int n = min(MAXIND, detag(getRef(goal)));
 
-    intS xs(MAXIND);
-    for (int i = 0; i < n; i++) {
-      int cell = deref(heap[p + i]);
-      xs[i] = cell2index(cell);
+        IntS xs(MAXIND);
+        for (Int i = 0; i < n; i++) {
+            Int cell = deref(heap[size_t(p + i)]);
+            xs[size_t(i)] = cell2index(cell);
+        }
+        G.xs = xs;
+        //if (imaps) throw "IMap TBD";
     }
-    G.xs = xs;
-    if (imaps) throw "IMap TBD";
-  }
 
-  intS getIndexables(int ref) {
-    int p = 1 + detag(ref);
-    int n = detag(getRef(ref));
-    intS xs = intS(MAXIND);
-    for (int i = 0; i < MAXIND && i < n; i++) {
-      int cell = deref(heap[p + i]);
-      xs[i] = cell2index(cell);
+    IntS getIndexables(Int ref) {
+        Int p = 1 + detag(ref);
+        Int n = detag(getRef(ref));
+        IntS xs = IntS(MAXIND);
+        for (Int i = 0; i < MAXIND && i < n; i++) {
+            Int cell = deref(heap[size_t(p + i)]);
+            xs[size_t(i)] = cell2index(cell);
+        }
+        return xs;
     }
-    return xs;
-  }
-  int cell2index(int cell) {
-    int x = 0;
-    int t = tagOf(cell);
-    switch (t) {
-    case R:
-      x = getRef(cell);
-        break;
-    case C:
-    case N:
-      x = cell;
-        break;
+    Int cell2index(Int cell) {
+        Int x = 0;
+        Int t = tagOf(cell);
+        switch (t) {
+        case R:
+            x = getRef(cell);
+            break;
+        case C:
+        case N:
+            x = cell;
+            break;
+        }
+        return x;
     }
-    return x;
-  }
-  bool match(xs, C0) {
-    for (int i = 0; i < MAXIND; i++) {
-      int x = xs[i];
-      int y = C0.xs[i];
-      if (0 == x || 0 == y)
-        continue;
-      if (x != y)
-        return false;
+    bool match(const IntS &xs, const Clause &C0) {
+        for (size_t i = 0; i < MAXIND; i++) {
+            Int x = xs[i];
+            Int y = C0.xs[i];
+            if (0 == x || 0 == y)
+                continue;
+            if (x != y)
+                return false;
+        }
+        return true;
     }
-    return true;
-  }
-  Spine unfold(const Spine& G) {
-    int ttop = trail.size() - 1;
-    int htop = top;
-    int base = htop + 1;
+    Spine* unfold(Spine& G);
+    Clause getQuery() {
+        return clauses.back();
+    }
+    Spine* init() {
+        Int base = size();
+        Clause G = getQuery();
+        Spine Q(G.hgs, base, IntS(), -1 /*trail.back()*/, 0, cls);
+        spines.push_back(Q);
+        return &spines.back();
+    }
+    Spine* answer(Int ttop) { return new Spine(spines[0].hd, ttop); }
+    void popSpine() {
+        auto G = spines.back(); spines.pop_back();
+        unwindTrail(G.ttop);
+        top = G.base - 1;
+    }
+    Spine* yield_() {
+        while (spines.size()) {
+            auto G = spines.back();
+            auto C = unfold(G);
+            if (nullptr == C) {
+                popSpine(); // no matches
+                continue;
+            }
+            if (hasGoals(*C)) {
+                spines.push_back(*C);
+                continue;
+            }
+            return C; // answer
+        }
+        return nullptr;
+    }
+    string heap2s() {
+        return ""; //string("[") + top + ' ' + heap.slice(0,top).vmap([](Int x) {return heapCell(x); }).join(',') + ']';
+    }
+    Object ask() {
+        query = yield_();
+        if (nullptr == query)
+            return Object();
+        auto res = answer(query->ttop)->hd;
+        auto R = exportTerm(res);
+        unwindTrail(query->ttop);
+        return R;
+    }
 
-    makeIndexArgs(G);
+    Toks::Tss vcreate(size_t l) {
+        return Toks::Tss(l);
+    }
 
-    int last = G.cs.size();
-    for (int k = G.k; k < last; k++) {
-      const Clause& C0 = clauses[G.cs[k]];
-      if (!match(G.xs, C0))
-        continue;
-      int base0 = base - C0.base;
-      int b = tag(V, base0);
-      int head = pushHead(b, C0);
-      ustack.clear();
-      ustack.push_back(head);
-      ustack.push_back(G.gs[0]);
-      if (!unify(base)) {
-        unwindTrail(ttop);
-        top = htop;
-        continue;
-      }
-      intS gs = pushBody(b, head, C0);
-      IntList newgs = gs.concat(G.gs.slice(1)).slice(1);
-      G.k = k + 1;
-      if (newgs.length)
-        return Spine(gs, base, G.gs.slice(1), ttop, 0, this.cls);
-      else
-        return answer(ttop);
+    void put(IntS keys, Int val) {
+        for (Int i = 0; i < Int(imaps.size()); i++) {
+            Int key = keys[size_t(i)];
+            if (key != 0)
+                imaps[i][size_t(key)] = val;
+            else
+                vmaps[size_t(i)][val] = val;
+        }
     }
-    return null;
-  }
-  getQuery() { return array_last(this.clauses, null) }
-  Clause* init() {
-    int base = size();
-    var G = this.getQuery()
-    var Q = Spine6(G.hgs, base, [], array_last(this.trail, -1), 0, this.cls)
-    this.spines.push(Q)
-    return Q
-  }
-  answer(ttop) { return Spine2(this.spines[0].hd, ttop) }
-  popSpine() {
-    var G = this.spines.pop()
-    this.unwindTrail(G.ttop)
-    this.top = G.base - 1
-  }
-  yield_() {
-    while (this.spines.length) {
-      var G = array_last(this.spines, null)
-      var C = this.unfold(G)
-      if (null == C) {
-        this.popSpine() // no matches
-        continue
-      }
-      if (hasGoals(C)) {
-        this.spines.push(C)
-        continue
-      }
-      return C // answer
+    void index(vector<Clause> clauses) {
+        if (clauses.size() < START_INDEX)
+            return;
+        //var T = JSON.stringify
+        imaps = t_imaps(vmaps.size());
+        for (size_t i = 0; i < clauses.size(); i++) {
+            Clause c = clauses[i];
+            //pp("!!!xs=" + T(c.xs) + ":" + this.showCells1(c.xs) + "=>" + i)
+            put(c.xs, Int(i + 1)); // $$$ UGLY INC
+            //pp(T(imaps));
+        }
+        /*
+        pp("INDEX");
+        pp(T(imaps));
+        pp(T(vmaps));
+        pp("");
+        */
     }
-    return null
-  }
-  heap2s() { return '[' + this.top + ' ' + this.heap.slice(0,this.top).map((x,y) => heapCell(x)).join(',') + ']' }
-  ask() {
-    this.query = this.yield_()
-    if (null == this.query)
-      return null
-    var res = this.answer(this.query.ttop).hd
-    var R = this.exportTerm(res)
-    this.unwindTrail(this.query.ttop)
-    return R
-  }
-  run(print_ans) {
-    var ctr = 0
-    for (;; ctr++) {
-      var A = this.ask()
-      if (null == A)
-        break
-      if (print_ans)
-        pp("[" + ctr + "] " + "*** ANSWER=" + this.showTerm(A))
-    }
-    pp("TOTAL ANSWERS=" + ctr)
-  }
-  vcreate(l) {
-    var vss = []
-    for (var i = 0; i < l; i++)
-      vss.push([])
-    return vss
-  }
-  put(imaps, vss, keys, val) {
-    for (var i = 0; i < imaps.length; i++) {
-      var key = keys[i]
-      if (key != 0)
-        imaps[i][key] = val
-      else
-        vss[i].add(val)
-    }
-  }
-  index(clauses, vmaps) {
-    if (clauses.length < START_INDEX)
-      return null
-    var T = JSON.stringify
-    var imaps = Array(vmaps.length)
-    for (var i = 0; i < clauses.length; i++) {
-      var c = clauses[i]
-      pp("!!!xs=" + T(c.xs) + ":" + this.showCells1(c.xs) + "=>" + i)
-      this.put(imaps, vmaps, c.xs, i + 1) // $$$ UGLY INC
-      pp(T(imaps))
-    }
-    pp("INDEX")
-    pp(T(imaps))
-    pp(T(vmaps))
-    pp("")
-    return imaps
-  }
 };
 
-Tss maybeExpand(Ts Ws) {
-  auto W = Ws[0];
-  if (W.size() < 2 || "l:" != W.substr(0, 2))
-    return Tss();
-  int l = Ws.size();
-  Tss Rss;
-  auto V = W.substr(2);
-  for (int i = 1; i < l; i++) {
-    cstr Vi = 1 == i ? V : V + "__" + (i - 1);
-    cstr Vii = V + "__" + i;
-    vector<cstr> Rs = {"h:" + Vi, "c:list", Ws[i], i == l - 1 ? "c:nil" : "v:" + Vii};
-    Rss.push_back(Rs);
-  }
-  return Rss;
-}
-Tss mapExpand(Tss Wss) {
-  Tss Rss;
-  for (auto Ws: Wss) {
-    auto Hss = maybeExpand(Ws);
-    if (Hss.empty())
-      Rss.push_back(Ws);
-    else
-      for (auto X: Hss)
-        Rss.push_back(X);
-  }
-  return Rss;
-}
-
-intS getSpine(intS cs) {
-  int a = cs[1];
-  int w = detag(a);
-  intS rs(w - 1);
-  for (int i = 0; i < w - 1; i++) {
-    int x = cs[3 + i];
-    int t = tagOf(x);
-    if (R != t)
-      throw cstr("*** getSpine: unexpected tag=") + t;
-    rs[i] = detag(x);
-  }
-  return rs;
-}
-int relocate(int b, int cell) { return tagOf(cell) < 3 ? cell + b : cell; }
-//const array_last=(a, def)=>a.length ? a[a.length - 1] : def
-bool hasClauses(Spine S) { return S.k < S.cs.size(); }
-bool hasGoals(Spine S) { return S.gs.size() > 0; }
-
 class Prog : public Engine {
-  Prog(cstr s) : Engine(s) {
-  }
 
-  void ppCode() {
-    pp("\nSYMS:");
-    pp(syms);
-    pp("\nCLAUSES:\n");
-    for (int i = 0; i < clauses.length; i++) {
-      auto C = clauses[i];
-      pp("[" + i + "]:" + showClause(C));
-    }
-    pp("");
-  }
-  string showClause(Clause s) {
-    string r;
-    int l = s.hgs.size();
-    r += cstr("---base:[") + s.base + "] neck: " + s.neck + "-----\n";
-    r += showCells2(s.base, s.len); // TODO
-    r += "\n";
-    r += showCell(s.hgs[0]);
+public:
+    Prog(string s);
+    virtual ~Prog();
 
-    r += " :- [";
-    for (int i = 1; i < l; i++) {
-      auto e = s.hgs[i];
-      r += showCell(e);
-      if (i < l - 1)
-        r += ", ";
-    }
-    r += "]\n";
-    r += showTerm(s.hgs[0]);
-    if (l > 1) {
-      r += " :- \n";
-      for (int i = 1; i < l; i++) {
-        auto e = s.hgs[i];
-        r += "  ";
-        r += showTerm(e);
-        r += "\n";
-      }
-    } else
-      r += "\n";
-    return r;
-  }
-  string showTerm(Term O) {
-      /*
-    if (typeof O === 'number')
-      return showTerm(O);
-    if (O instanceof Array)
-      return st0(O);
-    return JSON.stringify(O)
-    */
-  }
-  void ppGoals(intS bs) {
-    for (auto b: bs) {
-      pp(showTerm(exportTerm(b)));
-    }
-  }
-  void ppc(Spine S) {
-    auto bs = S.gs;
-    pp(cstr("\nppc: t=") + S.ttop + ",k=" + S.k + "len=" + bs.size());
-    ppGoals(bs);
-  }
-}
+    void ppCode();
+    string showClause(const Clause &s);
+    virtual string showTerm(Object O);
 
-cstr maybeNull(O) { return
-  nullptr == O ? "$null" :
-  O instanceof Array ? st0(O) :
-  ''+O;
-}
+    void ppGoals(IntS bs) {
+        for (auto b: bs) {
+            pp(showTerm(exportTerm(b)));
+        }
+    }
+    void ppc(Spine S) {
+        auto bs = S.gs;
+        pp(cstr("\nppc: t=") + S.ttop + ",k=" + S.k + "len=" + bs.size());
+        ppGoals(bs);
+    }
 
-bool isListCons(cstr name) { return "." == name || "[|]" == name || "list" == name; }
-bool isOp(cstr name)=>"/" === name || "-" === name || "+" === name || "=" === name
-function st0(args) {
-  var r = ''
-  var name = ''+args[0]
-  if (args.length == 3 && isOp(name)) {
-    r += "("
-    r += maybeNull(args[0])
-    r += " " + name + " "
-    r += maybeNull(args[1])
-    r += ")"
-  } else if (args.length == 3 && isListCons(name)) {
-    r += '['
-    r += maybeNull(args[1])
-    var tail = args[2]
-    for (;;) {
-      if ("[]" === tail || "nil" === tail)
-        break
-      if (!(tail instanceof Array)) {
-        r += '|'
-        r += maybeNull(tail)
-        break
-      }
-      var list = tail
-      if (!(list.length == 3 && isListCons(list[0]))) {
-        r += '|'
-        r += maybeNull(tail)
-        break
-      } else {
-        r += ','
-        r += maybeNull(list[1])
-        tail = list[2]
-      }
+    static string maybeNull(Object O) {
+      if (O.type == Object::t_null)
+        return "$null";
+      if (O.type == Object::t_vector)
+        return st0(O.v);
+      return O.toString();
     }
-    r += ']'
-  } else if (args.length == 2 && "$VAR" === name) {
-    r += "_" + args[1]
-  } else {
-    var qname = maybeNull(args[0])
-    r += qname
-    r += "("
-    for (var i = 1; i < args.length; i++) {
-      var O = args[i]
-      r += maybeNull(O)
-      if (i < args.length - 1)
-        r += ","
-    }
-    r += ")"
-  }
-  return r
-}
+    static inline bool isListCons(cstr name) { return "." == name || "[|]" == name || "list" == name; }
+    static inline bool isOp(cstr name) { return "/" == name || "-" == name || "+" == name || "=" == name; }
+
+    static string st0(vector<Object> args);
+};
 
 }
 
