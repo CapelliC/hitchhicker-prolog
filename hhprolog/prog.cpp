@@ -44,7 +44,7 @@ namespace hhprolog {
         if (O.type == Object::t_int)
             return Engine::showTerm(O.i);
         if (O.type == Object::t_vector)
-            return st0(O.v);
+            return st0(*O.v);
         return O.toString();
     }
 
@@ -82,52 +82,60 @@ namespace hhprolog {
 
     string Prog::st0(vector<Object> args) {
         string r;
-        string name = args[0].toString();
-        if (args.size() == 3 && isOp(name)) {
-            r += "(";
-            r += maybeNull(args[0]);
-            r += " " + name + " ";
-            r += maybeNull(args[1]);
-            r += ")";
-        } else if (args.size() == 3 && isListCons(name)) {
-            r += '[';
-            r += maybeNull(args[1]);
-            Object tail = args[2];
-            for (;;) {
-                if ("[]" == tail.toString() || "nil" == tail.toString())
-                    break;
-                if (false) { //!(tail instanceof Array)) {
-                    r += '|';
-                    r += maybeNull(tail);
-                    break;
+        if (!args.empty()) {
+            string name = args[0].toString();
+            if (args.size() == 3 && isOp(name)) {
+                r += "(";
+                r += maybeNull(args[0]);
+                r += " " + name + " ";
+                r += maybeNull(args[1]);
+                r += ")";
+            } else if (args.size() == 3 && isListCons(name)) {
+                r += '[';
+                r += maybeNull(args[1]);
+                Object tail = args[2];
+                for (;;) {
+                    if ("[]" == tail.toString() || "nil" == tail.toString())
+                        break;
+                    if (tail.type != Object::t_vector) {
+                        r += '|';
+                        r += maybeNull(tail);
+                        break;
+                    }
+                    const vector<Object>& list = *tail.v;
+                    if (!(list.size() == 3 && isListCons(list[0].toString()))) {
+                        r += '|';
+                        r += maybeNull(tail);
+                        break;
+                    } else {
+                        r += ',';
+                        r += maybeNull(list[1]);
+                        tail = list[2];
+                    }
                 }
-                vector<Object> list = tail.v;
-                if (!(list.size() == 3 && isListCons(list[0].toString()))) {
-                    r += '|';
-                    r += maybeNull(tail);
-                    break;
-                } else {
-                    r += ',';
-                    r += maybeNull(list[1]);
-                    tail = list[2];
+                r += ']';
+            } else if (args.size() == 2 && "$VAR" == name) {
+                r += "_" + args[1].toString();
+            } else {
+                string qname = maybeNull(args[0]);
+                r += qname;
+                r += "(";
+                for (size_t i = 1; i < args.size(); i++) {
+                    r += maybeNull(args[i]);
+                    if (i < args.size() - 1)
+                        r += ",";
                 }
+                r += ")";
             }
-            r += ']';
-        } else if (args.size() == 2 && "$VAR" == name) {
-            r += "_" + args[1].toString();
-        } else {
-            string qname = maybeNull(args[0]);
-            r += qname;
-            r += "(";
-            for (size_t i = 1; i < args.size(); i++) {
-                Object O = args[i];
-                r += maybeNull(O);
-                if (i < args.size() - 1)
-                    r += ",";
-            }
-            r += ")";
         }
         return r;
     }
 
+    string Prog::maybeNull(const Object &O) {
+        if (O.type == Object::t_null)
+            return "$null";
+        if (O.type == Object::t_vector)
+            return st0(*O.v);
+        return O.toString();
+    }
 }

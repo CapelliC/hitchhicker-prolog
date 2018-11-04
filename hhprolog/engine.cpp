@@ -286,12 +286,12 @@ Object Engine::exportTerm(Int x) {
 
     switch (t) {
     case C:
-        return getSym(w);
+        return Object(getSym(w));
     case N:
         return Object(w);
     case V:
         //case U:
-        return cstr("V") + w;
+        return Object(cstr("V") + w);
     case R: {
         Int a = heap[size_t(w)];
         if (A != tagOf(a))
@@ -303,7 +303,7 @@ Object Engine::exportTerm(Int x) {
             Int j = k + i;
             args.push_back(exportTerm(heap[size_t(j)]));
         }
-        return args;
+        return Object(args);
     }
     default:
         throw logic_error(cstr("*BAD TERM*") + showCell(x));
@@ -347,30 +347,41 @@ IntS Engine::toNums(vector<Clause> clauses)
 }
 
 void Engine::makeIndexArgs(Spine& G) {
-    Int goal = G.gs[0];
-    if (G.xs.size())
+    if (G.xs[0] != -1)
         return;
+
+    Int goal = G.gs[0];
     Int p = 1 + detag(goal);
     Int n = min(MAXIND, detag(getRef(goal)));
-
-    IntS xs(MAXIND);
     for (Int i = 0; i < n; i++) {
         Int cell = deref(heap[size_t(p + i)]);
-        xs[size_t(i)] = cell2index(cell);
+        G.xs[size_t(i)] = cell2index(cell);
     }
-    G.xs = xs;
     //if (imaps) throw "IMap TBD";
 }
 
-IntS Engine::getIndexables(Int ref) {
+Clause Engine::putClause(IntS cs, IntS gs, Int neck) {
+    Int base = size();
+    Int b = tag(V, base);
+    Int len = Int(cs.size());
+    pushCells2(b, 0, len, cs);
+    for (size_t i = 0; i < gs.size(); i++)
+        gs[i] = relocate(b, gs[i]);
+    Clause XC;
+    getIndexables(gs[0], XC);
+    XC.len=len;
+    XC.hgs=gs;
+    XC.base=base;
+    XC.neck=neck;
+    return XC;
+}
+void Engine::getIndexables(Int ref, Clause &c) {
     Int p = 1 + detag(ref);
     Int n = detag(getRef(ref));
-    IntS xs = IntS(MAXIND);
     for (Int i = 0; i < MAXIND && i < n; i++) {
         Int cell = deref(heap[size_t(p + i)]);
-        xs[size_t(i)] = cell2index(cell);
+        c.xs[size_t(i)] = cell2index(cell);
     }
-    return xs;
 }
 Int Engine::cell2index(Int cell) {
     Int x = 0;

@@ -51,17 +51,32 @@ typedef vector<t_IntMap> t_vmap;
 
 struct Object {
     enum { t_null, t_int, t_string, t_vector } type;
+    int _;
+
+    Object(const Object& o) {
+        copy(o);
+    }
+    Object& operator=(const Object& o) {
+        copy(o);
+        return *this;
+    }
+    ~Object() {
+        if (type == t_string)
+            delete s;
+        else if (type == t_vector)
+            delete v;
+    }
 
     Object() : type(t_null) {}
     explicit Object(Int i) : type(t_int), i(i) {}
-    Object(cstr s) : type(t_string), s(s) {}
-    Object(vector<Object> v) : type(t_vector), v(v) {}
+    explicit Object(string s) : type(t_string), s(new string(s)) {}
+    explicit Object(vector<Object> v) : type(t_vector), v(new vector<Object>(v)) {}
 
-    int _; // remove padding warning
-
-    Int i;
-    string s;
-    vector<Object> v;
+    union {
+        Int i;
+        string *s;
+        vector<Object> *v;
+    };
 
     string toString() const {
         switch(type) {
@@ -70,10 +85,10 @@ struct Object {
         case t_int:
             return to_string(i);
         case t_string:
-            return s;
+            return *s;
         case t_vector: {
             string j;
-            for (auto a: v) {
+            for (auto a: *v) {
                 if (!j.empty())
                     j += ",";
                 j += a.toString();
@@ -81,6 +96,16 @@ struct Object {
             return "(" + j + ")";
         }}
         throw logic_error("invalid term");
+    }
+
+private:
+    void copy(const Object& o) {
+        switch(type = o.type) {
+        case t_null: break;
+        case t_int: i = o.i; break;
+        case t_string: s = new string(*o.s); break;
+        case t_vector: v = new vector<Object>(*o.v); break;
+        }
     }
 };
 
@@ -94,13 +119,21 @@ namespace Toks {
     Tss mapExpand(Tss Wss);
 };
 
+const Int MINSIZE = 1 << 15;
+const Int MAXIND = 3;
+const Int START_INDEX = 20;
+
+typedef array<Int, MAXIND> t_xs;
+
 struct Clause {
+    Clause() :xs{-1,-1,-1}{}
     Int len;
     IntS hgs;
     Int base;
     Int neck;
-    IntS xs;
+    t_xs xs;
 };
+
 struct Spine {
     Int hd;     // head of the clause to which this corresponds
     Int base;   // top of the heap when this was created
@@ -109,7 +142,7 @@ struct Spine {
     Int ttop;   // top of the trail when this was created
 
     Int k;
-    IntS xs;    // index elements
+    t_xs xs;    // index elements
     IntS cs;    // array of  clauses known to be unifiable with top goal in gs
 
     Spine(IntS gs0, Int base, IntList gs, Int ttop, Int k, IntS cs) :
@@ -118,6 +151,7 @@ struct Spine {
         gs(gs0.concat(gs).slice(1)),
         ttop(ttop),
         k(k),
+        xs{-1,-1,-1},
         cs(cs)
     {
     }
@@ -126,14 +160,11 @@ struct Spine {
         hd(hd),
         base(0),
         ttop(ttop),
-        k(-1)
+        k(-1),
+        xs{-1,-1,-1}
     {
     }
 };
-
-const Int MINSIZE = 1 << 15;
-const Int MAXIND = 3;
-const Int START_INDEX = 20;
 
 const Int V = 0;
 const Int U = 1;
@@ -281,16 +312,7 @@ protected:
     bool unify(Int base);
     bool unify_args(Int w1, Int w2);
 
-    Clause putClause(IntS cs, IntS gs, Int neck) {
-        Int base = size();
-        Int b = tag(V, base);
-        Int len = Int(cs.size());
-        pushCells2(b, 0, len, cs);
-        for (size_t i = 0; i < gs.size(); i++)
-            gs[i] = relocate(b, gs[i]);
-        auto xs = getIndexables(gs[0]);
-        return Clause{len, gs, base, neck, xs};
-    }
+    Clause putClause(IntS cs, IntS gs, Int neck);
     void pushCells1(Int b, Int from, Int to, Int base) {
         ensureSize(to - from);
         for (Int i = from; i < to; i++)
@@ -318,10 +340,10 @@ protected:
     }
 
     void makeIndexArgs(Spine& G);
-    IntS getIndexables(Int ref);
+    void getIndexables(Int ref, Clause &c);
     Int cell2index(Int cell);
 
-    static inline bool match(const IntS &xs, const Clause &C0) {
+    static inline bool match(const t_xs &xs, const Clause &C0) {
         for (size_t i = 0; i < MAXIND; i++) {
             Int x = xs[i];
             Int y = C0.xs[i];
@@ -353,7 +375,7 @@ protected:
         return Toks::Tss(l);
     }
 
-    void put(IntS keys, Int val) {
+    void put(t_xs& keys, Int val) {
         for (Int i = 0; i < Int(imaps.size()); i++) {
             Int key = keys[size_t(i)];
             if (key != 0)
@@ -386,7 +408,7 @@ class Prog : public Engine {
 
 public:
     Prog(string s);
-    virtual ~Prog();
+    ~Prog() override;
 
     void run(bool print_ans);
     void ppCode();
@@ -394,7 +416,7 @@ public:
 protected:
 
     string showClause(const Clause &s);
-    virtual string showTerm(Object O);
+    string showTerm(Object O) override;
 
     void ppGoals(IntS bs) {
         for (auto b: bs) {
@@ -407,13 +429,7 @@ protected:
         ppGoals(bs);
     }
 
-    static string maybeNull(Object O) {
-      if (O.type == Object::t_null)
-        return "$null";
-      if (O.type == Object::t_vector)
-        return st0(O.v);
-      return O.toString();
-    }
+    static string maybeNull(const Object &O);
     static inline bool isListCons(cstr name) { return "." == name || "[|]" == name || "list" == name; }
     static inline bool isOp(cstr name) { return "/" == name || "-" == name || "+" == name || "=" == name; }
 
