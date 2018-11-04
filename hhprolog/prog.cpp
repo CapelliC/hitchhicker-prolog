@@ -44,7 +44,7 @@ namespace hhprolog {
         if (O.type == Object::t_int)
             return Engine::showTerm(O.i);
         if (O.type == Object::t_vector)
-            return st0(*O.v);
+            return st0(O.v);
         return O.toString();
     }
 
@@ -80,7 +80,7 @@ namespace hhprolog {
         return r;
     }
 
-    string Prog::st0(vector<Object> args) {
+    string Prog::st0(const vector<Object> &args) {
         string r;
         if (!args.empty()) {
             string name = args[0].toString();
@@ -102,7 +102,7 @@ namespace hhprolog {
                         r += maybeNull(tail);
                         break;
                     }
-                    const vector<Object>& list = *tail.v;
+                    const vector<Object>& list = tail.v;
                     if (!(list.size() == 3 && isListCons(list[0].toString()))) {
                         r += '|';
                         r += maybeNull(tail);
@@ -135,7 +135,7 @@ namespace hhprolog {
         if (O.type == Object::t_null)
             return "$null";
         if (O.type == Object::t_vector)
-            return st0(*O.v);
+            return st0(O.v);
         return O.toString();
     }
 }

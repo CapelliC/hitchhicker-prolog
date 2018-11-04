@@ -53,30 +53,14 @@ struct Object {
     enum { t_null, t_int, t_string, t_vector } type;
     int _;
 
-    Object(const Object& o) {
-        copy(o);
-    }
-    Object& operator=(const Object& o) {
-        copy(o);
-        return *this;
-    }
-    ~Object() {
-        if (type == t_string)
-            delete s;
-        else if (type == t_vector)
-            delete v;
-    }
-
     Object() : type(t_null) {}
     explicit Object(Int i) : type(t_int), i(i) {}
-    explicit Object(string s) : type(t_string), s(new string(s)) {}
-    explicit Object(vector<Object> v) : type(t_vector), v(new vector<Object>(v)) {}
+    explicit Object(string s) : type(t_string), s(s) {}
+    explicit Object(vector<Object> v) : type(t_vector), v(v) {}
 
-    union {
-        Int i;
-        string *s;
-        vector<Object> *v;
-    };
+    Int i;
+    string s;
+    vector<Object> v;
 
     string toString() const {
         switch(type) {
@@ -85,10 +69,10 @@ struct Object {
         case t_int:
             return to_string(i);
         case t_string:
-            return *s;
+            return s;
         case t_vector: {
             string j;
-            for (auto a: *v) {
+            for (auto a: v) {
                 if (!j.empty())
                     j += ",";
                 j += a.toString();
@@ -96,16 +80,6 @@ struct Object {
             return "(" + j + ")";
         }}
         throw logic_error("invalid term");
-    }
-
-private:
-    void copy(const Object& o) {
-        switch(type = o.type) {
-        case t_null: break;
-        case t_int: i = o.i; break;
-        case t_string: s = new string(*o.s); break;
-        case t_vector: v = new vector<Object>(*o.v); break;
-        }
     }
 };
 
@@ -433,7 +407,7 @@ protected:
     static inline bool isListCons(cstr name) { return "." == name || "[|]" == name || "list" == name; }
     static inline bool isOp(cstr name) { return "/" == name || "-" == name || "+" == name || "=" == name; }
 
-    static string st0(vector<Object> args);
+    static string st0(const vector<Object> &args);
 };
 
 }

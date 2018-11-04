@@ -64,7 +64,7 @@ Spine* Engine::unfold(Spine& G) {
     return nullptr;
 }
 bool Engine::unify(Int base) {
-    while (ustack.size()) {
+    while (!ustack.empty()) {
         Int x1 = deref(ustack.back()); ustack.pop_back();
         Int x2 = deref(ustack.back()); ustack.pop_back();
         if (x1 != x2) {
