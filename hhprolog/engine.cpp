@@ -28,7 +28,21 @@ Engine::Engine(string asm_nl_source) {
 Engine::~Engine() {
 }
 
-Spine* Engine::unfold(Spine& G) {
+/*
+#include <cassert>
+bool eq(const Spine &x, const Spine &y) {
+    if (x.base != y.base) return false;
+    if (x.cs != y.cs) return false;
+    if (x.gs != y.gs) return false;
+    if (x.hd != y.hd) return false;
+    if (x.ttop != y.ttop) return false;
+    if (x.xs != y.xs) return false;
+    return true;
+}
+*/
+Spine* Engine::unfold() {
+    Spine& G = spines.back();
+
     Int ttop = Int(trail.size()) - 1;
     Int htop = top;
     Int base = htop + 1;
@@ -52,11 +66,24 @@ Spine* Engine::unfold(Spine& G) {
             continue;
         }
         IntS gs = pushBody(b, head, C0);
-        IntList newgs = gs.concat(G.gs.slice(1)).slice(1);
         G.k = k + 1;
-        if (newgs.size()) {
-            spines.push_back(Spine(gs, base, G.gs.slice(1), ttop, 0, cls));
-            return &spines.back();
+        if (gs.size()>1 || G.gs.size()>1) {
+            //optimize
+            //spines.push_back(Spine(gs, base, G.gs.slice(1), ttop, 0, cls));
+            //return &spines.back();
+
+            spines.push_back(Spine(base, ttop, 0));
+            auto *sp = &spines.back();
+            sp->hd = gs[0];
+            for (size_t x = 1; x < gs.size(); ++x)
+                sp->gs.push_back(gs[x]);
+
+            // note: cannot reuse G because the last spines.push_back could relocate the array
+            const auto &rgs = spines[spines.size() - 2].gs;
+            for (size_t x = 1; x < rgs.size(); ++x)
+                sp->gs.push_back(rgs[x]);
+            sp->cs = cls;
+            return sp;
         }
         else
             return answer(ttop);
@@ -152,7 +179,7 @@ Int Engine::addSym(cstr sym) {
     return distance(syms.begin(), I);
 }
 
-IntS Engine::getSpine(IntS cs) {
+IntS Engine::getSpine(const IntS& cs) {
     Int a = cs[1];
     Int w = detag(a);
     IntS rs(w - 1);
@@ -257,8 +284,7 @@ Object Engine::ask() {
 }
 Spine* Engine::yield_() {
     while (spines.size()) {
-        auto &G = spines.back();
-        auto C = unfold(G);
+        auto C = unfold();
         if (nullptr == C) {
             popSpine(); // no matches
             continue;

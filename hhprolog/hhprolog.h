@@ -119,14 +119,23 @@ struct Spine {
     t_xs xs;    // index elements
     IntS cs;    // array of  clauses known to be unifiable with top goal in gs
 
-    Spine(IntS gs0, Int base, IntList gs, Int ttop, Int k, IntS cs) :
+    /* optimize ...*/
+    Spine(const IntS& gs0, Int base, const IntList &gs, Int ttop, Int k, const IntS &cs) :
         hd(gs0[0]),
         base(base),
-        gs(gs0.concat(gs).slice(1)),
+        //gs(gs0.concat(gs).slice(1)),
+        gs(gs0.slice(1).concat(gs)),
         ttop(ttop),
         k(k),
         xs{-1,-1,-1},
         cs(cs)
+    {
+    }
+    Spine(Int base, Int ttop, Int k) :
+        base(base),
+        ttop(ttop),
+        k(k),
+        xs{-1,-1,-1}
     {
     }
 
@@ -183,7 +192,7 @@ protected:
 
     static IntS toNums(vector<Clause> clauses);
 
-    static IntS getSpine(IntS cs);
+    static IntS getSpine(const IntS &cs);
     static inline Int relocate(Int b, Int cell) { return tagOf(cell) < 3 ? cell + b : cell; }
 
     static bool hasClauses(const Spine &S) { return S.k < Int(S.cs.size()); }
@@ -292,7 +301,7 @@ protected:
         for (Int i = from; i < to; i++)
             push(relocate(b, heap[size_t(base + i)]));
     }
-    void pushCells2(Int b, Int from, Int to, IntS &cs) {
+    void pushCells2(Int b, Int from, Int to, const IntS &cs) {
         ensureSize(to - from);
         for (Int i = from; i < to; i++)
             push(relocate(b, cs[size_t(i)]));
@@ -328,7 +337,7 @@ protected:
         }
         return true;
     }
-    Spine* unfold(Spine& G);
+    Spine* unfold();
     inline Clause getQuery() {
         return clauses.back();
     }
@@ -336,6 +345,11 @@ protected:
         Int base = size();
         Clause G = getQuery();
         Spine Q(G.hgs, base, IntS(), -1, 0, cls);
+
+        spines.reserve(10000);
+        trail.reserve(10000);
+        ustack.reserve(10000);
+
         spines.push_back(Q);
         return &spines.back();
     }
