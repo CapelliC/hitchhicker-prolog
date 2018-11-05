@@ -299,10 +299,11 @@ Spine* Engine::yield_() {
 }
 
 void Engine::popSpine() {
-    auto G = spines.back();
+    auto ttop = spines.back().ttop;
+    auto ntop = spines.back().base - 1;
     spines.pop_back();
-    unwindTrail(G.ttop);
-    top = G.base - 1;
+    unwindTrail(ttop);
+    top = ntop;
 }
 
 Object Engine::exportTerm(Int x) {
