@@ -75,14 +75,25 @@ Spine* Engine::unfold() {
             spines.push_back(Spine(base, ttop, 0));
             auto *sp = &spines.back();
             sp->hd = gs[0];
-            for (size_t x = 1; x < gs.size(); ++x)
-                sp->gs.push_back(gs[x]);
+            sp->cs = cls;
 
             // note: cannot reuse G because the last spines.push_back could relocate the array
             const auto &rgs = spines[spines.size() - 2].gs;
+#if 0
+            sp->gs.reserve(gs.size() - 1 + ( rgs.size() > 0 ? rgs.size() -1 : 0 ));
+
+            for (size_t x = 1; x < gs.size(); ++x)
+                sp->gs.push_back(gs[x]);
             for (size_t x = 1; x < rgs.size(); ++x)
                 sp->gs.push_back(rgs[x]);
-            sp->cs = cls;
+#else
+            sp->gs.resize(gs.size() - 1 + ( rgs.size() > 0 ? rgs.size() - 1 : 0 ));
+            size_t y = 0;
+            for (size_t x = 1; x < gs.size(); ++x)
+                sp->gs[y++] = gs[x];
+            for (size_t x = 1; x < rgs.size(); ++x)
+                sp->gs[y++] = rgs[x];
+#endif
             return sp;
         }
         else
