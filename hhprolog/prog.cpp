@@ -27,11 +27,13 @@ namespace hhprolog {
     }
 
     void Prog::ppCode() {
-        pp("\nSYMS:");
+        string t;
         for (size_t i = 0; i < syms.size(); i++) {
-            pp(cstr("sym ") + i + ":" + syms[i]);
+            if (i > 0) t += ", ";
+            t += syms[i] + "=" + i;
         }
-        //pp(syms);
+        pp("\nSYMS:\n{" + t + "}");
+
         pp("\nCLAUSES:\n");
         for (size_t i = 0; i < clauses.size(); i++) {
             auto C = clauses[i];
