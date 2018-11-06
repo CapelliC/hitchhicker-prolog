@@ -119,26 +119,6 @@ struct Spine {
     t_xs xs;    // index elements
     IntS cs;    // array of  clauses known to be unifiable with top goal in gs
 
-    /* optimize ...
-    Spine(const IntS& gs0, Int base, const IntList &gs, Int ttop, Int k, const IntS &cs) :
-        hd(gs0[0]),
-        base(base),
-        //gs(gs0.concat(gs).slice(1)),
-        gs(gs0.slice(1).concat(gs)),
-        ttop(ttop),
-        k(k),
-        xs{-1,-1,-1},
-        cs(cs)
-    {
-    }
-    Spine(Int base, Int ttop, Int k) :
-        base(base),
-        ttop(ttop),
-        k(k),
-        xs{-1,-1,-1}
-    {
-    }
-    */
     Spine() :
         xs{-1,-1,-1}
     {}
@@ -267,10 +247,6 @@ protected:
      * raw display of a externalized term
      */
     virtual string showTerm(Object O) {
-      /*
-       if (O.type == Object::t_vector)
-        return Arrays.deepToString((Object[]) O);
-      */
       return O.toString();
     }
 
@@ -305,6 +281,7 @@ protected:
     bool unify_args(Int w1, Int w2);
 
     Clause putClause(IntS cs, IntS gs, Int neck);
+
     void pushCells1(Int b, Int from, Int to, Int base) {
         ensureSize(to - from);
         for (Int i = from; i < to; i++)
@@ -319,19 +296,7 @@ protected:
         pushCells1(b, 0, C.neck, C.base);
         return relocate(b, C.hgs[0]);
     }
-    /*
-    IntS pushBody(Int b, Int head, Clause& C) {
-        pushCells1(b, C.neck, C.len, C.base);
-        auto l = C.hgs.size();
-        IntS gs(static_cast<Int>(l));
-        gs[0] = head;
-        for (size_t k = 1; k < l; k++) {
-            auto cell = C.hgs[k];
-            gs[k] = relocate(b, cell);
-        }
-        return gs;
-    }
-    */
+
     IntS gs_pushBody;
     void pushBody(Int b, Int head, Clause& C);
 

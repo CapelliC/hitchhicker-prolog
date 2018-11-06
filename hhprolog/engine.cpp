@@ -32,7 +32,7 @@ Engine::~Engine() {
 string Engine::stats() const {
     ostringstream s;
     s   << heap.capacity() << ' '
-        << spines_top << " of " << spines.capacity()
+        << spines_top << " of " << spines.capacity() << ' '
         << trail.capacity() << ' '
         << ustack.capacity();
     s << " [ ";
@@ -81,7 +81,7 @@ Spine* Engine::new_spine(const IntS& gs0, Int base, const IntList &rgs, Int ttop
     for (size_t x = 1; x < rgs.size(); ++x)
         sp->gs[y++] = rgs[x];
 #endif
-    c_spine_mem[req_size]++;
+    //c_spine_mem[req_size]++;
     return sp;
 }
 
