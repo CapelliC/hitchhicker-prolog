@@ -45,6 +45,8 @@ int main(int argc, char *argv[])
             cout << "done in " << duration_cast<milliseconds>(e - b).count() << endl;
         }
 
+        cout << p->stats() << endl;
+
         delete p;
     }
     catch(exception &e) {

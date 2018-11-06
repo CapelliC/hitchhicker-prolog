@@ -8,6 +8,7 @@ Copyright (c) 2018 Carlo Capelli
 #include "hhprolog.h"
 
 #include <map>
+#include <sstream>
 #include <numeric>
 #include <iostream>
 #include <algorithm>
@@ -26,6 +27,32 @@ Engine::Engine(string asm_nl_source) {
     //imaps = index(clauses, vmaps);
 }
 Engine::~Engine() {
+}
+
+string Engine::stats() const {
+    ostringstream s;
+    s   << heap.capacity() << ' '
+        << spines.capacity() << ' '
+        << trail.capacity() << ' '
+        << ustack.capacity();
+    s << " [ ";
+    for (auto c: c_spine_mem)
+        s << c.first << ':' << c.second << ' ';
+    s << ']';
+    return s.str();
+}
+
+Spine* Engine::init() {
+    Int base = size();
+    Clause G = getQuery();
+    Spine Q(G.hgs, base, IntS(), -1, 0, cls);
+
+    spines.reserve(10000);
+    trail.reserve(10000);
+    ustack.reserve(10000);
+
+    spines.push_back(Q);
+    return &spines.back();
 }
 
 /*
@@ -79,21 +106,23 @@ Spine* Engine::unfold() {
 
             // note: cannot reuse G because the last spines.push_back could relocate the array
             const auto &rgs = spines[spines.size() - 2].gs;
+            auto req_size = gs.size() - 1 + ( rgs.size() > 0 ? rgs.size() -1 : 0 );
 #if 0
-            sp->gs.reserve(gs.size() - 1 + ( rgs.size() > 0 ? rgs.size() -1 : 0 ));
+            sp->gs.reserve(req_size);
 
             for (size_t x = 1; x < gs.size(); ++x)
                 sp->gs.push_back(gs[x]);
             for (size_t x = 1; x < rgs.size(); ++x)
                 sp->gs.push_back(rgs[x]);
 #else
-            sp->gs.resize(gs.size() - 1 + ( rgs.size() > 0 ? rgs.size() - 1 : 0 ));
+            sp->gs.resize(req_size);
             size_t y = 0;
             for (size_t x = 1; x < gs.size(); ++x)
                 sp->gs[y++] = gs[x];
             for (size_t x = 1; x < rgs.size(); ++x)
                 sp->gs[y++] = rgs[x];
 #endif
+            c_spine_mem[req_size]++;
             return sp;
         }
         else

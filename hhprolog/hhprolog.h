@@ -164,6 +164,8 @@ public:
     Engine(string asm_nl_source);
     virtual ~Engine();
 
+    string stats() const;
+
 protected:
 
     vector<string> syms;
@@ -341,18 +343,7 @@ protected:
     inline Clause getQuery() {
         return clauses.back();
     }
-    Spine* init() {
-        Int base = size();
-        Clause G = getQuery();
-        Spine Q(G.hgs, base, IntS(), -1, 0, cls);
-
-        spines.reserve(10000);
-        trail.reserve(10000);
-        ustack.reserve(10000);
-
-        spines.push_back(Q);
-        return &spines.back();
-    }
+    Spine* init();
     Spine* answer(Int ttop);
     void popSpine();
 
@@ -390,6 +381,9 @@ protected:
         pp("");
         */
     }
+
+private:
+    unordered_map<size_t, size_t> c_spine_mem;
 };
 
 class Prog : public Engine {
