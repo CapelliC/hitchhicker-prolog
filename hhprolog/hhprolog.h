@@ -119,7 +119,7 @@ struct Spine {
     t_xs xs;    // index elements
     IntS cs;    // array of  clauses known to be unifiable with top goal in gs
 
-    /* optimize ...*/
+    /* optimize ...
     Spine(const IntS& gs0, Int base, const IntList &gs, Int ttop, Int k, const IntS &cs) :
         hd(gs0[0]),
         base(base),
@@ -138,6 +138,10 @@ struct Spine {
         xs{-1,-1,-1}
     {
     }
+    */
+    Spine() :
+        xs{-1,-1,-1}
+    {}
 
     Spine(Int hd, Int ttop) :
         hd(hd),
@@ -175,7 +179,10 @@ protected:
     Int top = -1;
     IntStack trail;
     IntStack ustack;
+
     vector<Spine> spines;
+    size_t spines_top;
+    Spine* new_spine(const IntS& gs0, Int base, const IntList &gs, Int ttop);
 
     Spine *query = nullptr;
 
@@ -312,6 +319,7 @@ protected:
         pushCells1(b, 0, C.neck, C.base);
         return relocate(b, C.hgs[0]);
     }
+    /*
     IntS pushBody(Int b, Int head, Clause& C) {
         pushCells1(b, C.neck, C.len, C.base);
         auto l = C.hgs.size();
@@ -323,6 +331,9 @@ protected:
         }
         return gs;
     }
+    */
+    IntS gs_pushBody;
+    void pushBody(Int b, Int head, Clause& C);
 
     void makeIndexArgs(Spine& G);
     void getIndexables(Int ref, Clause &c);
@@ -340,6 +351,8 @@ protected:
         return true;
     }
     Spine* unfold();
+    size_t c_inferences = 0;
+
     inline Clause getQuery() {
         return clauses.back();
     }

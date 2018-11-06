@@ -32,7 +32,7 @@ Engine::~Engine() {
 string Engine::stats() const {
     ostringstream s;
     s   << heap.capacity() << ' '
-        << spines.capacity() << ' '
+        << spines_top << " of " << spines.capacity()
         << trail.capacity() << ' '
         << ustack.capacity();
     s << " [ ";
@@ -45,40 +45,69 @@ string Engine::stats() const {
 Spine* Engine::init() {
     Int base = size();
     Clause G = getQuery();
-    Spine Q(G.hgs, base, IntS(), -1, 0, cls);
 
-    spines.reserve(10000);
     trail.reserve(10000);
     ustack.reserve(10000);
 
-    spines.push_back(Q);
-    return &spines.back();
+    spines.resize(10000);
+    spines_top = 0;
+
+    gs_pushBody.resize(100);
+
+    return new_spine(G.hgs, base, IntS(), -1);
+}
+Spine* Engine::new_spine(const IntS& gs0, Int base, const IntList &rgs, Int ttop) {
+    auto *sp = &spines[spines_top++];
+    sp->hd = gs0[0];
+    sp->cs = cls;
+    sp->base = base;
+    sp->ttop = ttop;
+    sp->xs = t_xs{-1,-1,-1};
+    sp->k = 0;
+    // note: cannot reuse G because the last spines.push_back could relocate the array
+    auto req_size = gs0.size() - 1 + ( rgs.size() > 0 ? rgs.size() -1 : 0 );
+#if 0
+    sp->gs.reserve(req_size);
+
+    for (size_t x = 1; x < gs.size(); ++x)
+        sp->gs.push_back(gs[x]);
+    for (size_t x = 1; x < rgs.size(); ++x)
+        sp->gs.push_back(rgs[x]);
+#else
+    sp->gs.resize(req_size);
+    size_t y = 0;
+    for (size_t x = 1; x < gs0.size(); ++x)
+        sp->gs[y++] = gs0[x];
+    for (size_t x = 1; x < rgs.size(); ++x)
+        sp->gs[y++] = rgs[x];
+#endif
+    c_spine_mem[req_size]++;
+    return sp;
 }
 
-/*
-#include <cassert>
-bool eq(const Spine &x, const Spine &y) {
-    if (x.base != y.base) return false;
-    if (x.cs != y.cs) return false;
-    if (x.gs != y.gs) return false;
-    if (x.hd != y.hd) return false;
-    if (x.ttop != y.ttop) return false;
-    if (x.xs != y.xs) return false;
-    return true;
-}
-*/
+/**
+ * transforms a spine containing references to choice point and
+ * immutable list of goals into a new spine, by reducing the
+ * first goal in the list with a clause that successfully
+ * unifies with it - in which case places the goals of the
+ * clause at the top of the new list of goals, in reverse order
+ */
 Spine* Engine::unfold() {
-    Spine& G = spines.back();
+    ++c_inferences;
+
+    Spine& G = spines[spines_top - 1];
 
     Int ttop = Int(trail.size()) - 1;
     Int htop = top;
     Int base = htop + 1;
 
+    //cout << c_inferences << ' ' << ttop << ' ' << htop << ' ' << base << endl;
+
     makeIndexArgs(G);
 
-    Int last = Int(G.cs.size());
-    for (Int k = G.k; k < last; k++) {
-        Clause& C0 = clauses[size_t(G.cs[size_t(k)])];
+    size_t last = G.cs.size();
+    for (size_t k = size_t(G.k); k < last; k++) {
+        Clause& C0 = clauses[size_t(G.cs[k])];
         if (!match(G.xs, C0))
             continue;
         Int base0 = base - C0.base;
@@ -92,44 +121,26 @@ Spine* Engine::unfold() {
             top = htop;
             continue;
         }
-        IntS gs = pushBody(b, head, C0);
-        G.k = k + 1;
-        if (gs.size()>1 || G.gs.size()>1) {
-            //optimize
-            //spines.push_back(Spine(gs, base, G.gs.slice(1), ttop, 0, cls));
-            //return &spines.back();
-
-            spines.push_back(Spine(base, ttop, 0));
-            auto *sp = &spines.back();
-            sp->hd = gs[0];
-            sp->cs = cls;
-
-            // note: cannot reuse G because the last spines.push_back could relocate the array
-            const auto &rgs = spines[spines.size() - 2].gs;
-            auto req_size = gs.size() - 1 + ( rgs.size() > 0 ? rgs.size() -1 : 0 );
-#if 0
-            sp->gs.reserve(req_size);
-
-            for (size_t x = 1; x < gs.size(); ++x)
-                sp->gs.push_back(gs[x]);
-            for (size_t x = 1; x < rgs.size(); ++x)
-                sp->gs.push_back(rgs[x]);
-#else
-            sp->gs.resize(req_size);
-            size_t y = 0;
-            for (size_t x = 1; x < gs.size(); ++x)
-                sp->gs[y++] = gs[x];
-            for (size_t x = 1; x < rgs.size(); ++x)
-                sp->gs[y++] = rgs[x];
-#endif
-            c_spine_mem[req_size]++;
-            return sp;
-        }
+        pushBody(b, head, C0);
+        G.k = Int(k + 1);
+        if (gs_pushBody.size() > 1 || G.gs.size() > 1)
+            return new_spine(gs_pushBody, base, G.gs, ttop);
         else
             return answer(ttop);
     }
     return nullptr;
 }
+void Engine::pushBody(Int b, Int head, Clause& C) {
+    pushCells1(b, C.neck, C.len, C.base);
+    auto l = C.hgs.size();
+    gs_pushBody.resize(l);
+    gs_pushBody[0] = head;
+    for (size_t k = 1; k < l; k++) {
+        auto cell = C.hgs[k];
+        gs_pushBody[k] = relocate(b, cell);
+    }
+}
+
 bool Engine::unify(Int base) {
     while (!ustack.empty()) {
         Int x1 = deref(ustack.back()); ustack.pop_back();
@@ -323,27 +334,23 @@ Object Engine::ask() {
     return R;
 }
 Spine* Engine::yield_() {
-    while (spines.size()) {
+    while (spines_top) {
         auto C = unfold();
         if (nullptr == C) {
             popSpine(); // no matches
             continue;
         }
-        if (hasGoals(*C)) {
-            //spines.push_back(*C);
+        if (hasGoals(*C))
             continue;
-        }
         return C; // answer
     }
     return nullptr;
 }
 
 void Engine::popSpine() {
-    auto ttop = spines.back().ttop;
-    auto ntop = spines.back().base - 1;
-    spines.pop_back();
-    unwindTrail(ttop);
-    top = ntop;
+    --spines_top;
+    unwindTrail(spines[spines_top].ttop);
+    top = spines[spines_top].base - 1;
 }
 
 Object Engine::exportTerm(Int x) {
